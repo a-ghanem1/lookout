@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Lookout.Storage.Sqlite;
 
-public sealed class SqliteLookoutStorage : IDisposable
+public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
 {
     private readonly ISqliteConnectionFactory _factory;
 
