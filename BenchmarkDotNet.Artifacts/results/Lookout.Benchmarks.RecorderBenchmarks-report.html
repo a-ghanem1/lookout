@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Lookout.Benchmarks.RecorderBenchmarks-20260420-211033</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS 26.3 (25D125) [Darwin 25.3.0]
+Apple M1, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 10.0.201
+  [Host]     : .NET 8.0.0 (8.0.23.53103), Arm64 RyuJIT AdvSIMD
+  Job-OFCOOQ : .NET 8.0.0 (8.0.23.53103), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>InvocationCount=1  UnrollFactor=1  
+</code></pre>
+
+<table>
+<thead><tr><th>Method        </th><th>Mean  </th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>RecordOnly_10Entries</td><td>7.665 &mu;s</td><td>0.7492 &mu;s</td><td>2.101 &mu;s</td><td>7.083 &mu;s</td><td>1.06</td><td>0.38</td><td>3.77 KB</td><td>1.00</td>
+</tr><tr><td>Pipeline_EndToEnd</td><td>6,381.594 &mu;s</td><td>126.3117 &mu;s</td><td>366.453 &mu;s</td><td>6,482.583 &mu;s</td><td>885.37</td><td>206.95</td><td>67.9 KB</td><td>18.03</td>
+</tr></tbody></table>
+</body>
+</html>

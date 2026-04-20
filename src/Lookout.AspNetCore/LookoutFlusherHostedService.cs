@@ -1,6 +1,7 @@
 using Lookout.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Lookout.AspNetCore;
 
@@ -11,15 +12,18 @@ internal sealed class LookoutFlusherHostedService : BackgroundService
 
     private readonly ChannelLookoutRecorder _recorder;
     private readonly ILookoutStorage _storage;
+    private readonly LookoutOptions _options;
     private readonly ILogger<LookoutFlusherHostedService> _logger;
 
     public LookoutFlusherHostedService(
         ChannelLookoutRecorder recorder,
         ILookoutStorage storage,
+        IOptions<LookoutOptions> options,
         ILogger<LookoutFlusherHostedService> logger)
     {
         _recorder = recorder;
         _storage = storage;
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -91,10 +95,12 @@ internal sealed class LookoutFlusherHostedService : BackgroundService
         }
     }
 
-    private async Task WriteBatchAsync(List<LookoutEntry> batch, CancellationToken ct)
+    private async Task WriteBatchAsync(List<LookoutEntry> rawBatch, CancellationToken ct)
     {
         try
         {
+            var batch = PrepareBatch(rawBatch);
+            if (batch.Count == 0) return;
             await _storage.WriteAsync(batch, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -106,7 +112,22 @@ internal sealed class LookoutFlusherHostedService : BackgroundService
             _logger.LogError(
                 ex,
                 "Lookout flusher: write failed for batch of {Count} entries; entries discarded.",
-                batch.Count);
+                rawBatch.Count);
         }
+    }
+
+    private IReadOnlyList<LookoutEntry> PrepareBatch(List<LookoutEntry> raw)
+    {
+        IReadOnlyList<LookoutEntry> batch = raw;
+
+        if (_options.FilterBatch is { } filterBatch)
+            batch = filterBatch(batch);
+
+        batch = batch.Select(e => RedactionPipeline.Apply(e, _options.Redaction)).ToList();
+
+        if (_options.Redact is { } redact)
+            batch = batch.Select(redact).ToList();
+
+        return batch;
     }
 }

@@ -41,30 +41,31 @@ public sealed class LookoutOptions
     public int ChannelCapacity { get; set; } = 10_000;
 
     /// <summary>
-    /// Reserved — wired in M2.6.
     /// Callback invoked on the request path to apply custom tags to each entry before enqueue.
+    /// The second argument is a mutable copy of the entry's tag dictionary; mutate it freely.
     /// </summary>
     public Action<LookoutEntry, IDictionary<string, string>>? Tag { get; set; }
 
     /// <summary>
-    /// Reserved — wired in M2.6.
     /// Per-entry filter: return <c>false</c> to drop an entry before it is enqueued.
     /// Runs synchronously on the request path; keep it fast.
     /// </summary>
     public Func<LookoutEntry, bool>? Filter { get; set; }
 
     /// <summary>
-    /// Reserved — wired in M2.6.
     /// Batch-level filter applied in the flusher before writing to storage.
     /// May be slower than <see cref="Filter"/>; runs off the request path.
     /// </summary>
     public Func<IReadOnlyList<LookoutEntry>, IReadOnlyList<LookoutEntry>>? FilterBatch { get; set; }
 
-    /// <summary>
-    /// Reserved — wired in M2.6.
-    /// Redaction configuration for headers, query parameters, form fields, and custom callbacks.
-    /// </summary>
+    /// <summary>Redaction configuration for headers, query parameters, and form fields.</summary>
     public RedactionOptions Redaction { get; set; } = new();
+
+    /// <summary>
+    /// Custom redaction callback applied in the flusher after the default redactors.
+    /// Return a (possibly modified) entry; return the input unchanged to pass through.
+    /// </summary>
+    public Func<LookoutEntry, LookoutEntry>? Redact { get; set; }
 
     /// <summary>How often the retention background service runs. Default: 5 minutes.</summary>
     /// <remarks>Exposed primarily for testing; production callers should not need to change this.</remarks>

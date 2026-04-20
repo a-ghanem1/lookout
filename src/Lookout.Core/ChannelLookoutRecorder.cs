@@ -13,6 +13,7 @@ public sealed class ChannelLookoutRecorder : ILookoutRecorder, IDisposable
 {
     private readonly Channel<LookoutEntry> _channel;
     private readonly int _capacity;
+    private readonly LookoutOptions _options;
     private readonly ILogger<ChannelLookoutRecorder> _logger;
     private long _dropCount;
 
@@ -20,7 +21,8 @@ public sealed class ChannelLookoutRecorder : ILookoutRecorder, IDisposable
         IOptions<LookoutOptions> options,
         ILogger<ChannelLookoutRecorder> logger)
     {
-        _capacity = options.Value.ChannelCapacity;
+        _options = options.Value;
+        _capacity = _options.ChannelCapacity;
         _logger = logger;
         _channel = Channel.CreateBounded<LookoutEntry>(new BoundedChannelOptions(_capacity)
         {
@@ -33,6 +35,16 @@ public sealed class ChannelLookoutRecorder : ILookoutRecorder, IDisposable
     /// <inheritdoc />
     public void Record(LookoutEntry entry)
     {
+        if (_options.Tag is { } tag)
+        {
+            var mutableTags = entry.Tags.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            tag(entry, mutableTags);
+            entry = entry with { Tags = mutableTags };
+        }
+
+        if (_options.Filter is { } filter && !filter(entry))
+            return;
+
         // Pre-check fullness before write so we can count dropped entries.
         // DropOldest silently removes the oldest item and succeeds, so TryWrite always returns true.
         if (_channel.Reader.Count >= _capacity)
@@ -48,7 +60,7 @@ public sealed class ChannelLookoutRecorder : ILookoutRecorder, IDisposable
         _channel.Writer.TryWrite(entry);
     }
 
-    /// <summary>Channel reader consumed by the background flusher (M2.4).</summary>
+    /// <summary>Channel reader consumed by the background flusher.</summary>
     internal ChannelReader<LookoutEntry> Reader => _channel.Reader;
 
     /// <summary>Running count of entries dropped due to a full channel.</summary>
