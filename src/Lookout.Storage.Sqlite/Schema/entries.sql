@@ -34,8 +34,8 @@ AFTER INSERT ON entries BEGIN
 END;
 
 -- Keep the FTS index in sync when a row is deleted.
+-- contentless_delete=1 enables DELETE on the FTS virtual table directly.
 CREATE TRIGGER IF NOT EXISTS trg_entries_fts_delete
 AFTER DELETE ON entries BEGIN
-    INSERT INTO entries_fts (entries_fts, rowid, tags_json, content_json)
-    VALUES ('delete', old.rowid, old.tags_json, old.content_json);
+    DELETE FROM entries_fts WHERE rowid = old.rowid;
 END;

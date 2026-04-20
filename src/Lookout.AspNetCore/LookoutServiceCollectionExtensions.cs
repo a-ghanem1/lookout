@@ -23,14 +23,17 @@ public static class LookoutServiceCollectionExtensions
         services.TryAddSingleton<ChannelLookoutRecorder>();
         services.TryAddSingleton<ILookoutRecorder>(sp => sp.GetRequiredService<ChannelLookoutRecorder>());
 
-        // TryAdd so tests can override with AddSingleton after this call.
-        services.TryAddSingleton<ILookoutStorage>(sp =>
+        // Register the concrete type so the retention service can inject it directly.
+        // TryAdd so tests can substitute ILookoutStorage without affecting the pruner.
+        services.TryAddSingleton<SqliteLookoutStorage>(sp =>
         {
             var opts = sp.GetRequiredService<IOptions<LookoutOptions>>().Value;
             return new SqliteLookoutStorage(opts);
         });
+        services.TryAddSingleton<ILookoutStorage>(sp => sp.GetRequiredService<SqliteLookoutStorage>());
 
         services.AddHostedService<LookoutFlusherHostedService>();
+        services.AddHostedService<LookoutRetentionHostedService>();
 
         return services;
     }

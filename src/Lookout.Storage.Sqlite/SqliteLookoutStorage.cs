@@ -80,6 +80,45 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         return results;
     }
 
+    public async Task<int> PruneOlderThanAsync(DateTimeOffset cutoff, CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = (SqliteTransaction)tx;
+        cmd.CommandText = "DELETE FROM entries WHERE timestamp_utc < @cutoff";
+        cmd.Parameters.AddWithValue("@cutoff", cutoff.ToUnixTimeMilliseconds());
+        var deleted = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+        return deleted;
+    }
+
+    public async Task<int> PruneToMaxCountAsync(int max, CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+
+        await using var countCmd = conn.CreateCommand();
+        countCmd.Transaction = (SqliteTransaction)tx;
+        countCmd.CommandText = "SELECT COUNT(*) FROM entries";
+        var total = (long)(await countCmd.ExecuteScalarAsync(ct).ConfigureAwait(false))!;
+
+        var deleted = 0;
+        if (total > max)
+        {
+            await using var deleteCmd = conn.CreateCommand();
+            deleteCmd.Transaction = (SqliteTransaction)tx;
+            deleteCmd.CommandText =
+                "DELETE FROM entries WHERE id IN " +
+                "(SELECT id FROM entries ORDER BY timestamp_utc ASC LIMIT @limit)";
+            deleteCmd.Parameters.AddWithValue("@limit", total - max);
+            deleted = await deleteCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+        return deleted;
+    }
+
     public void Dispose() => (_factory as IDisposable)?.Dispose();
 
     private static LookoutEntry ReadEntry(SqliteDataReader reader) =>

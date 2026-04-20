@@ -65,4 +65,8 @@ public sealed class LookoutOptions
     /// Redaction configuration for headers, query parameters, form fields, and custom callbacks.
     /// </summary>
     public RedactionOptions Redaction { get; set; } = new();
+
+    /// <summary>How often the retention background service runs. Default: 5 minutes.</summary>
+    /// <remarks>Exposed primarily for testing; production callers should not need to change this.</remarks>
+    internal TimeSpan RetentionInterval { get; set; } = TimeSpan.FromMinutes(5);
 }
