@@ -1,3 +1,4 @@
+using Lookout.Core;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lookout.AspNetCore;

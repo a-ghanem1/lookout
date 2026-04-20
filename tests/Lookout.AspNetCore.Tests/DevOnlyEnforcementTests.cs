@@ -1,5 +1,6 @@
 using System.Net;
 using FluentAssertions;
+using Lookout.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Logging;
