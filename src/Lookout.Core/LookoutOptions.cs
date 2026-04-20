@@ -70,4 +70,40 @@ public sealed class LookoutOptions
     /// <summary>How often the retention background service runs. Default: 5 minutes.</summary>
     /// <remarks>Exposed primarily for testing; production callers should not need to change this.</remarks>
     internal TimeSpan RetentionInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// When true, HTTP request bodies are buffered and captured (content-type gated,
+    /// size-capped by <see cref="MaxBodyBytes"/>). Default: <c>false</c>.
+    /// </summary>
+    public bool CaptureRequestBody { get; set; }
+
+    /// <summary>
+    /// When true, HTTP response bodies are captured (content-type gated,
+    /// size-capped by <see cref="MaxBodyBytes"/>). Default: <c>false</c>.
+    /// </summary>
+    public bool CaptureResponseBody { get; set; }
+
+    /// <summary>
+    /// Maximum number of bytes captured per request or response body.
+    /// Bodies larger than this are truncated with a marker. Default: 65,536 (64 KiB).
+    /// </summary>
+    public int MaxBodyBytes { get; set; } = 65_536;
+
+    /// <summary>
+    /// Request paths that are skipped entirely by HTTP capture. Comparison is case-insensitive.
+    /// The <c>/lookout</c> mount prefix is always skipped regardless of this set.
+    /// </summary>
+    public HashSet<string> SkipPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "/healthz", "/health", "/ready", "/favicon.ico",
+    };
+
+    /// <summary>
+    /// Content types eligible for body capture. Matches exact strings and a single
+    /// <c>text/*</c> wildcard. Comparison is case-insensitive.
+    /// </summary>
+    public HashSet<string> CapturedContentTypes { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "application/json", "application/x-www-form-urlencoded", "text/*",
+    };
 }

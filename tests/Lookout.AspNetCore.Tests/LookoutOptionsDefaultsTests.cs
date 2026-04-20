@@ -70,4 +70,49 @@ public sealed class LookoutOptionsDefaultsTests
     {
         _sut.Redaction.Should().NotBeNull();
     }
+
+    [Fact]
+    public void CaptureRequestBody_DefaultsToFalse()
+    {
+        _sut.CaptureRequestBody.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CaptureResponseBody_DefaultsToFalse()
+    {
+        _sut.CaptureResponseBody.Should().BeFalse();
+    }
+
+    [Fact]
+    public void MaxBodyBytes_DefaultIs65536()
+    {
+        _sut.MaxBodyBytes.Should().Be(65_536);
+    }
+
+    [Fact]
+    public void SkipPaths_DefaultsToKnownHealthAndFaviconPaths()
+    {
+        _sut.SkipPaths.Should().BeEquivalentTo(
+            new[] { "/healthz", "/health", "/ready", "/favicon.ico" });
+    }
+
+    [Fact]
+    public void SkipPaths_MatchesCaseInsensitively()
+    {
+        _sut.SkipPaths.Contains("/HEALTHZ").Should().BeTrue();
+        _sut.SkipPaths.Contains("/Favicon.ICO").Should().BeTrue();
+    }
+
+    [Fact]
+    public void CapturedContentTypes_DefaultsToJsonFormAndTextWildcard()
+    {
+        _sut.CapturedContentTypes.Should().BeEquivalentTo(
+            new[] { "application/json", "application/x-www-form-urlencoded", "text/*" });
+    }
+
+    [Fact]
+    public void CapturedContentTypes_MatchesCaseInsensitively()
+    {
+        _sut.CapturedContentTypes.Contains("Application/JSON").Should().BeTrue();
+    }
 }
