@@ -115,4 +115,18 @@ public sealed class LookoutOptionsDefaultsTests
     {
         _sut.CapturedContentTypes.Contains("Application/JSON").Should().BeTrue();
     }
+
+    [Fact]
+    public void Redaction_JsonFields_DefaultsToSensitiveNames()
+    {
+        _sut.Redaction.JsonFields.Should().Contain(
+            new[] { "password", "token", "access_token", "refresh_token", "secret", "api_key", "apikey" });
+    }
+
+    [Fact]
+    public void Redaction_JsonFields_MatchCaseInsensitively()
+    {
+        _sut.Redaction.JsonFields.Contains("Password").Should().BeTrue();
+        _sut.Redaction.JsonFields.Contains("API_KEY").Should().BeTrue();
+    }
 }

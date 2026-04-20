@@ -205,6 +205,236 @@ public sealed class LookoutRequestMiddlewareTests : IDisposable
     }
 
     [Fact]
+    public async Task DefaultOptions_DoNotCaptureRequestOrResponseBodies()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath, endpointMap: endpoints =>
+        {
+            endpoints.MapPost("/echo", async (HttpContext ctx) =>
+            {
+                using var reader = new StreamReader(ctx.Request.Body);
+                var body = await reader.ReadToEndAsync();
+                return Results.Text(body, "application/json");
+            });
+        });
+        await app.StartAsync();
+
+        var req = new HttpRequestMessage(HttpMethod.Post, "/echo")
+        {
+            Content = new StringContent("{\"hello\":\"world\"}", System.Text.Encoding.UTF8, "application/json"),
+        };
+        (await app.GetTestClient().SendAsync(req)).IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        var content = DeserializeContent(entry);
+        content.RequestBody.Should().BeNull();
+        content.ResponseBody.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task OptIn_CapturesJsonRequestBody_AndRedactsSensitiveFields()
+    {
+        var dbPath = TempDbPath();
+        string? observedRequestBody = null;
+        await using var app = BuildApp(
+            dbPath,
+            o => { o.CaptureRequestBody = true; o.CaptureResponseBody = true; },
+            endpointMap: endpoints =>
+            {
+                endpoints.MapPost("/login", async (HttpContext ctx) =>
+                {
+                    using var reader = new StreamReader(ctx.Request.Body);
+                    observedRequestBody = await reader.ReadToEndAsync();
+                    return Results.Text("{\"ok\":true}", "application/json");
+                });
+            });
+        await app.StartAsync();
+
+        var body = "{\"user\":\"alice\",\"password\":\"super-secret\"}";
+        var req = new HttpRequestMessage(HttpMethod.Post, "/login")
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
+        };
+        (await app.GetTestClient().SendAsync(req)).IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        observedRequestBody.Should().Be(body, "downstream handlers must still receive the original body");
+
+        var content = DeserializeContent(entry);
+        content.RequestBody.Should().NotBeNull();
+        content.RequestBody.Should().Contain("\"user\":\"alice\"");
+        content.RequestBody.Should().Contain("\"password\":\"***\"");
+        content.RequestBody.Should().NotContain("super-secret");
+
+        content.ResponseBody.Should().NotBeNull();
+        content.ResponseBody.Should().Contain("\"ok\":true");
+    }
+
+    [Fact]
+    public async Task OptIn_CapturesFormBody_AndRedactsSensitiveFields()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(
+            dbPath,
+            o => { o.CaptureRequestBody = true; },
+            endpointMap: endpoints =>
+            {
+                endpoints.MapPost("/form", (HttpContext ctx) => Results.NoContent());
+            });
+        await app.StartAsync();
+
+        var req = new HttpRequestMessage(HttpMethod.Post, "/form")
+        {
+            Content = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("user", "alice"),
+                new KeyValuePair<string, string>("password", "secret-value"),
+            }),
+        };
+        (await app.GetTestClient().SendAsync(req)).IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        var content = DeserializeContent(entry);
+        content.RequestBody.Should().NotBeNull();
+        content.RequestBody.Should().Contain("user=alice");
+        content.RequestBody.Should().Contain("password=***");
+        content.RequestBody.Should().NotContain("secret-value");
+    }
+
+    [Fact]
+    public async Task OptIn_SkipsBinaryResponseContentType()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(
+            dbPath,
+            o => { o.CaptureResponseBody = true; },
+            endpointMap: endpoints =>
+            {
+                endpoints.MapGet("/image", (HttpContext ctx) =>
+                {
+                    var bytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+                    return Results.File(bytes, "image/png");
+                });
+            });
+        await app.StartAsync();
+
+        (await app.GetTestClient().GetAsync("/image")).IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        DeserializeContent(entry).ResponseBody.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task OptIn_TruncatesBodyExceedingMaxBodyBytes_WithMarker()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(
+            dbPath,
+            o => { o.CaptureRequestBody = true; o.MaxBodyBytes = 16; },
+            endpointMap: endpoints =>
+            {
+                endpoints.MapPost("/big", async (HttpContext ctx) =>
+                {
+                    using var reader = new StreamReader(ctx.Request.Body);
+                    await reader.ReadToEndAsync();
+                    return Results.NoContent();
+                });
+            });
+        await app.StartAsync();
+
+        var payload = new string('A', 1024);
+        var req = new HttpRequestMessage(HttpMethod.Post, "/big")
+        {
+            Content = new StringContent(payload, System.Text.Encoding.UTF8, "text/plain"),
+        };
+        (await app.GetTestClient().SendAsync(req)).IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        var content = DeserializeContent(entry);
+        content.RequestBody.Should().NotBeNull();
+        content.RequestBody.Should().Contain("[lookout:truncated]");
+        // Only the first 16 bytes should be present before the marker.
+        content.RequestBody!.Replace("[lookout:truncated]", "").TrimEnd('\n', '…')
+            .Should().Be(new string('A', 16));
+    }
+
+    [Fact]
+    public async Task OptIn_DownstreamHandlerStillReadsOriginalRequestBody()
+    {
+        var dbPath = TempDbPath();
+        string? observed = null;
+        await using var app = BuildApp(
+            dbPath,
+            o => { o.CaptureRequestBody = true; },
+            endpointMap: endpoints =>
+            {
+                endpoints.MapPost("/echo", async (HttpContext ctx) =>
+                {
+                    using var reader = new StreamReader(ctx.Request.Body);
+                    observed = await reader.ReadToEndAsync();
+                    return Results.NoContent();
+                });
+            });
+        await app.StartAsync();
+
+        var body = "{\"a\":1,\"b\":2}";
+        var req = new HttpRequestMessage(HttpMethod.Post, "/echo")
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
+        };
+        (await app.GetTestClient().SendAsync(req)).IsSuccessStatusCode.Should().BeTrue();
+
+        await PollForEntriesAsync(dbPath, expected: 1);
+        await app.StopAsync();
+
+        observed.Should().Be(body);
+    }
+
+    [Fact]
+    public async Task OptIn_StreamingResponse_ProducesValidEntryEvenWhenTruncated()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(
+            dbPath,
+            o => { o.CaptureResponseBody = true; o.MaxBodyBytes = 32; },
+            endpointMap: endpoints =>
+            {
+                endpoints.MapGet("/stream", async (HttpContext ctx) =>
+                {
+                    ctx.Response.ContentType = "text/plain";
+                    for (var i = 0; i < 10; i++)
+                    {
+                        var chunk = System.Text.Encoding.UTF8.GetBytes(new string('X', 64));
+                        await ctx.Response.Body.WriteAsync(chunk);
+                        await ctx.Response.Body.FlushAsync();
+                    }
+                });
+            });
+        await app.StartAsync();
+
+        var response = await app.GetTestClient().GetAsync("/stream");
+        response.IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        var content = DeserializeContent(entry);
+        content.ResponseBody.Should().NotBeNull();
+        content.ResponseBody.Should().Contain("[lookout:truncated]");
+        content.ResponseBody!.Should().StartWith(new string('X', 32));
+    }
+
+    [Fact]
     public async Task SensitiveHeaders_AreRedacted_InContentJson()
     {
         var dbPath = TempDbPath();

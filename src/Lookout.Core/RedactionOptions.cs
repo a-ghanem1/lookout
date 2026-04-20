@@ -31,4 +31,14 @@ public sealed class RedactionOptions
         "password", "token", "access_token", "refresh_token",
         "secret", "api_key", "apikey",
     };
+
+    /// <summary>
+    /// JSON property names whose values are replaced with <c>***</c> before storage.
+    /// Applied recursively to any captured JSON body. Comparison is case-insensitive.
+    /// </summary>
+    public HashSet<string> JsonFields { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "password", "token", "access_token", "refresh_token",
+        "secret", "api_key", "apikey",
+    };
 }

@@ -76,4 +76,96 @@ public static class RedactionPipeline
         options.Headers.Contains(key) ||
         options.QueryParams.Contains(key) ||
         options.FormFields.Contains(key);
+
+    /// <summary>
+    /// Recursively redacts property values in a JSON document whose names match
+    /// <see cref="RedactionOptions.JsonFields"/>. Non-object or unparseable input is returned unchanged.
+    /// </summary>
+    public static string RedactJsonBody(string json, RedactionOptions options)
+    {
+        if (string.IsNullOrEmpty(json)) return json;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            using var ms = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(ms))
+                WriteElement(doc.RootElement, writer, options.JsonFields);
+            return Encoding.UTF8.GetString(ms.ToArray());
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    private static void WriteElement(JsonElement element, Utf8JsonWriter writer, HashSet<string> sensitive)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                writer.WriteStartObject();
+                foreach (var prop in element.EnumerateObject())
+                {
+                    writer.WritePropertyName(prop.Name);
+                    if (sensitive.Contains(prop.Name))
+                        writer.WriteStringValue(Mask);
+                    else
+                        WriteElement(prop.Value, writer, sensitive);
+                }
+                writer.WriteEndObject();
+                break;
+            case JsonValueKind.Array:
+                writer.WriteStartArray();
+                foreach (var item in element.EnumerateArray())
+                    WriteElement(item, writer, sensitive);
+                writer.WriteEndArray();
+                break;
+            default:
+                element.WriteTo(writer);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Redacts values in an <c>application/x-www-form-urlencoded</c> body whose field names
+    /// match <see cref="RedactionOptions.FormFields"/>. Preserves ordering and original encoding
+    /// of non-sensitive fields.
+    /// </summary>
+    public static string RedactFormBody(string form, RedactionOptions options)
+    {
+        if (string.IsNullOrEmpty(form)) return form;
+
+        var sb = new StringBuilder(form.Length);
+        var start = 0;
+        while (start <= form.Length)
+        {
+            var amp = form.IndexOf('&', start);
+            var end = amp < 0 ? form.Length : amp;
+            var pair = form.Substring(start, end - start);
+
+            var eq = pair.IndexOf('=');
+            if (eq < 0)
+            {
+                sb.Append(pair);
+            }
+            else
+            {
+                var name = pair.Substring(0, eq);
+                string decodedName;
+                try { decodedName = Uri.UnescapeDataString(name.Replace('+', ' ')); }
+                catch { decodedName = name; }
+
+                sb.Append(pair, 0, eq + 1);
+                if (options.FormFields.Contains(decodedName))
+                    sb.Append(Mask);
+                else
+                    sb.Append(pair, eq + 1, pair.Length - (eq + 1));
+            }
+
+            if (amp < 0) break;
+            sb.Append('&');
+            start = end + 1;
+        }
+        return sb.ToString();
+    }
 }
