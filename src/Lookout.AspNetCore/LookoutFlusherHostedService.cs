@@ -23,9 +23,22 @@ internal sealed class LookoutFlusherHostedService : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    // Tracked separately so StopAsync can await loop completion before draining.
+    private Task _loopTask = Task.CompletedTask;
+
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await RunLoopAsync(stoppingToken).ConfigureAwait(false);
+        _loopTask = RunLoopAsync(stoppingToken);
+        return _loopTask;
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        // Cancels stoppingToken and waits for _executeTask (== _loopTask) with host timeout.
+        await base.StopAsync(cancellationToken).ConfigureAwait(false);
+        // Safety net: if the host timeout fired before the loop exited, wait for it now so
+        // DrainRemainingAsync never runs concurrently with the loop.
+        await _loopTask.ConfigureAwait(false);
         await DrainRemainingAsync().ConfigureAwait(false);
     }
 
