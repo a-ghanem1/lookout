@@ -1,5 +1,6 @@
 using Lookout.Core;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Lookout.AspNetCore;
 
@@ -11,9 +12,15 @@ public static class LookoutServiceCollectionExtensions
         this IServiceCollection services,
         Action<LookoutOptions>? configure = null)
     {
+        services.AddLogging();
         services.AddOptions<LookoutOptions>();
         if (configure is not null)
             services.Configure(configure);
+
+        // Register the concrete type so the flusher (M2.4) can inject it directly for Reader access.
+        services.TryAddSingleton<ChannelLookoutRecorder>();
+        services.TryAddSingleton<ILookoutRecorder>(sp => sp.GetRequiredService<ChannelLookoutRecorder>());
+
         return services;
     }
 }
