@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Lookout.AspNetCore\Lookout.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Lookout.Storage.Sqlite\Lookout.Storage.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>
