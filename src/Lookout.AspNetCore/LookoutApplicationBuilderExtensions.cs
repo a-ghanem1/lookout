@@ -47,6 +47,7 @@ public static class LookoutApplicationBuilderExtensions
             }
         }
 
+        app.UseMiddleware<LookoutRequestMiddleware>();
         return app;
     }
 }

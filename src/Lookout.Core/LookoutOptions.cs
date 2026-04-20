@@ -106,4 +106,10 @@ public sealed class LookoutOptions
     {
         "application/json", "application/x-www-form-urlencoded", "text/*",
     };
+
+    /// <summary>
+    /// Claim type used to resolve the authenticated user name for HTTP capture.
+    /// When <c>null</c> (default), <c>HttpContext.User.Identity?.Name</c> is used.
+    /// </summary>
+    public string? UserClaimType { get; set; }
 }

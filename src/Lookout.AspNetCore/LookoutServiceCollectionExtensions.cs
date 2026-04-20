@@ -32,6 +32,8 @@ public static class LookoutServiceCollectionExtensions
         });
         services.TryAddSingleton<ILookoutStorage>(sp => sp.GetRequiredService<SqliteLookoutStorage>());
 
+        services.TryAddSingleton<LookoutMountInfo>();
+
         services.AddHostedService<LookoutFlusherHostedService>();
         services.AddHostedService<LookoutRetentionHostedService>();
 

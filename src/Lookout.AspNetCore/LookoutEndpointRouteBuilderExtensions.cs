@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Lookout.AspNetCore;
 
@@ -12,6 +13,9 @@ public static class LookoutEndpointRouteBuilderExtensions
         this IEndpointRouteBuilder endpoints,
         string pathPrefix = "/lookout")
     {
+        var mount = endpoints.ServiceProvider.GetRequiredService<LookoutMountInfo>();
+        mount.PathPrefix = pathPrefix;
+
         return endpoints.MapGet(pathPrefix, () => Results.Content("Lookout is running.", "text/plain"));
     }
 }
