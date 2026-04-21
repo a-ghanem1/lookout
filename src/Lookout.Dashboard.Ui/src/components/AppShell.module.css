@@ -27,9 +27,10 @@
 }
 
 .brandMark {
+  width: var(--space-6);
+  height: var(--space-6);
   color: var(--color-accent-fg);
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-semibold);
+  flex-shrink: 0;
 }
 
 .actions {

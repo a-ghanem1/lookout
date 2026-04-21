@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTheme } from '../theme/useTheme';
+import { LookoutLogo } from './LookoutLogo';
 import styles from './AppShell.module.css';
 
 export interface AppShellProps {
@@ -12,7 +13,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <a className={styles.brand} href="#/">
-          <span className={styles.brandMark}>{'{/}'}</span>
+          <LookoutLogo className={styles.brandMark} />
           Lookout
         </a>
         <div className={styles.actions}>
