@@ -44,7 +44,7 @@ public sealed class EfCorePipelineTests : IDisposable
             resp.StatusCode.Should().Be(HttpStatusCode.OK, because: body);
         }
 
-        await WaitForCountAsync(lookoutDb, minimum: 2, timeoutSeconds: 5);
+        await WaitForHttpEntryAsync(lookoutDb, timeoutSeconds: 5);
 
         using var storage = new SqliteLookoutStorage(new LookoutOptions { StoragePath = lookoutDb });
         var entries = await storage.ReadRecentAsync(50);
