@@ -1,0 +1,60 @@
+/* Dark theme semantic token mapping. Activated when data-theme="dark" on <html>. */
+
+:root[data-theme='dark'] {
+  /* Surfaces */
+  --color-bg-canvas: var(--gray-950);
+  --color-bg-subtle: var(--gray-900);
+  --color-bg-muted: var(--gray-850);
+  --color-bg-inset: var(--gray-975);
+  --color-bg-overlay: var(--gray-800);
+  --color-bg-hover: var(--gray-850);
+  --color-bg-selected: var(--accent-900);
+
+  /* Foregrounds */
+  --color-fg-default: var(--gray-50);
+  --color-fg-muted: var(--gray-400);
+  --color-fg-subtle: var(--gray-500);
+  --color-fg-onAccent: var(--gray-25);
+
+  /* Borders */
+  --color-border-default: var(--gray-800);
+  --color-border-muted: var(--gray-850);
+  --color-border-strong: var(--gray-600);
+
+  /* Accent */
+  --color-accent-fg: var(--accent-300);
+  --color-accent-bg: var(--accent-500);
+  --color-accent-bg-hover: var(--accent-400);
+  --color-accent-border: var(--accent-400);
+  --color-accent-ring: rgba(129, 140, 248, 0.4);
+
+  /* Success */
+  --color-success-fg: var(--success-500);
+  --color-success-bg: var(--success-600);
+  --color-success-bg-subtle: var(--success-900);
+  --color-success-border: var(--success-700);
+
+  /* Warn */
+  --color-warn-fg: var(--warn-500);
+  --color-warn-bg: var(--warn-600);
+  --color-warn-bg-subtle: var(--warn-900);
+  --color-warn-border: var(--warn-700);
+
+  /* Error */
+  --color-error-fg: var(--error-500);
+  --color-error-bg: var(--error-600);
+  --color-error-bg-subtle: var(--error-900);
+  --color-error-border: var(--error-700);
+
+  /* Info */
+  --color-info-fg: var(--info-500);
+  --color-info-bg: var(--info-600);
+  --color-info-bg-subtle: var(--info-900);
+  --color-info-border: var(--info-700);
+
+  /* Special */
+  --color-special-fg: var(--special-500);
+  --color-special-bg: var(--special-600);
+  --color-special-bg-subtle: var(--special-900);
+  --color-special-border: var(--special-700);
+}

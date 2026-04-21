@@ -2,10 +2,69 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <!-- Default resource name prefix; LogicalName overrides per-file below. -->
+    <RootNamespace>Lookout.Dashboard</RootNamespace>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <DashboardUiDir>$(MSBuildThisFileDirectory)..\Lookout.Dashboard.Ui</DashboardUiDir>
+    <DashboardWebRoot>$(MSBuildThisFileDirectory)wwwroot</DashboardWebRoot>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Lookout.Core\Lookout.Core.csproj" />
   </ItemGroup>
+
+  <!--
+    Build the Vite bundle before compile. Runs once per outer build, gated on
+    'SkipDashboardUiBuild' so CI environments without Node can fall back to whatever
+    was last committed to wwwroot/ (if anything). The outer pass handles cross-TFM
+    builds (avoiding 'npm ci' races between parallel inner builds); the inner pass
+    only kicks in for single-TFM builds when wwwroot has not yet been produced.
+  -->
+  <Target Name="BuildDashboardUi_Outer"
+          BeforeTargets="DispatchToInnerBuilds"
+          Condition="'$(IsCrossTargetingBuild)' == 'true' AND '$(SkipDashboardUiBuild)' != 'true' AND Exists('$(DashboardUiDir)\package.json')">
+    <Message Importance="high" Text="Building Lookout dashboard UI at $(DashboardUiDir)" />
+    <Exec Command="npm ci" WorkingDirectory="$(DashboardUiDir)" />
+    <Exec Command="npm run build" WorkingDirectory="$(DashboardUiDir)" />
+  </Target>
+
+  <Target Name="BuildDashboardUi_Inner"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(IsCrossTargetingBuild)' != 'true' AND '$(SkipDashboardUiBuild)' != 'true' AND Exists('$(DashboardUiDir)\package.json') AND !Exists('$(DashboardWebRoot)\index.html')">
+    <Message Importance="high" Text="Building Lookout dashboard UI (single-TFM) at $(DashboardUiDir)" />
+    <Exec Command="npm ci" WorkingDirectory="$(DashboardUiDir)" />
+    <Exec Command="npm run build" WorkingDirectory="$(DashboardUiDir)" />
+  </Target>
+
+  <!--
+    Glob the built bundle into embedded resources. Top-level so MSBuild picks up the
+    files during project evaluation. In cross-target solution builds this works because
+    the outer BuildDashboardUi_Outer target produces wwwroot before the inner per-TFM
+    MSBuild invocations evaluate their project files. Single-TFM builds get their
+    wwwroot from BuildDashboardUi_Inner and a second pass of the same target during
+    AssignTargetPaths batching.
+    LogicalName starts with 'LookoutUi/' so the C# side can look assets up by their
+    relative path.
+  -->
+  <ItemGroup Condition="Exists('$(DashboardWebRoot)')">
+    <EmbeddedResource Include="$(DashboardWebRoot)\**\*.*">
+      <LogicalName>LookoutUi/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Belt-and-braces: also inject items dynamically from the inner build target, so
+       a cold single-TFM build (no prior wwwroot) still sees them by AssignCulture. -->
+  <Target Name="AddDashboardEmbeddedResources"
+          BeforeTargets="AssignCulture;PrepareResourceNames;CoreCompile"
+          DependsOnTargets="BuildDashboardUi_Inner"
+          Condition="Exists('$(DashboardWebRoot)')">
+    <ItemGroup>
+      <_DashboardAsset Include="$(DashboardWebRoot)\**\*.*" />
+      <EmbeddedResource Include="@(_DashboardAsset)"
+                        Exclude="@(EmbeddedResource)">
+        <LogicalName>LookoutUi/%(_DashboardAsset.RecursiveDir)%(_DashboardAsset.Filename)%(_DashboardAsset.Extension)</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
 
 </Project>

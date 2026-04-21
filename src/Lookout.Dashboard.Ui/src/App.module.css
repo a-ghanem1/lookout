@@ -1,0 +1,4 @@
+.notFound {
+  padding: var(--space-8);
+  color: var(--color-fg-muted);
+}

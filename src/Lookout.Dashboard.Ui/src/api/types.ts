@@ -1,0 +1,44 @@
+/**
+ * Wire types mirroring Lookout.AspNetCore.Api DTOs (camelCase, nulls omitted).
+ * Keep in sync with Lookout.Core.Schemas.HttpEntryContent and EntryDto / EntryListResponse.
+ */
+
+export type EntryType = 'http' | 'ef' | 'sql' | 'cache' | 'http-out' | 'log' | 'exception' | 'job' | 'dump';
+
+export interface EntryDto {
+  id: string;
+  type: EntryType | string;
+  timestamp: number; // unix ms
+  requestId?: string;
+  durationMs?: number;
+  tags: Record<string, string>;
+  content: unknown;
+}
+
+export interface HttpEntryContent {
+  method: string;
+  path: string;
+  queryString: string;
+  statusCode: number;
+  durationMs: number;
+  requestHeaders: Record<string, string>;
+  responseHeaders: Record<string, string>;
+  requestBody?: string;
+  responseBody?: string;
+  user?: string;
+}
+
+export interface EntryListResponse {
+  entries: EntryDto[];
+  nextBefore?: number | null;
+}
+
+export interface EntryListQuery {
+  type?: string;
+  method?: string;
+  status?: string;
+  path?: string;
+  q?: string;
+  before?: number;
+  limit?: number;
+}

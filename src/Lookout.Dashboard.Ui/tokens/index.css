@@ -1,0 +1,32 @@
+@import './primitives.css';
+@import './light.css';
+@import './dark.css';
+@import './typography.css';
+@import './spacing.css';
+@import './radii.css';
+@import './shadows.css';
+@import './motion.css';
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg-canvas);
+  color: var(--color-fg-default);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent-ring);
+  outline-offset: 2px;
+}

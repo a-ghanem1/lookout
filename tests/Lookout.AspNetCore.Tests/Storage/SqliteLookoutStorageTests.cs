@@ -36,6 +36,29 @@ public sealed class SqliteLookoutStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task FirstOpen_CreatesMissingParentDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"lookout_dir_{Guid.NewGuid():N}");
+        var nested = Path.Combine(root, "nested", "dir");
+        var dbPath = Path.Combine(nested, "lookout.db");
+        try
+        {
+            Directory.Exists(nested).Should().BeFalse("precondition: parent dir should not exist yet");
+
+            using var storage = new SqliteLookoutStorage(new LookoutOptions { StoragePath = dbPath });
+            var result = await storage.ReadRecentAsync(1);
+
+            result.Should().BeEmpty();
+            File.Exists(dbPath).Should().BeTrue();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task WriteAsync_ReadRecentAsync_RoundtripsAllFields()
     {
         var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());

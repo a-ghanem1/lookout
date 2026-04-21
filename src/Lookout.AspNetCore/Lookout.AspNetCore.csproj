@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Lookout.Core\Lookout.Core.csproj" />
     <ProjectReference Include="..\Lookout.Storage.Sqlite\Lookout.Storage.Sqlite.csproj" />
+    <ProjectReference Include="..\Lookout.Dashboard\Lookout.Dashboard.csproj" />
   </ItemGroup>
 
 </Project>

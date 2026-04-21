@@ -103,8 +103,11 @@ public sealed class LookoutRequestMiddlewareTests : IDisposable
         await app.StartAsync();
 
         var client = app.GetTestClient();
-        (await client.GetAsync("/lookout")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await client.GetAsync("/lookout/nested/path")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        // /lookout and sub-paths are handled by the dashboard (SPA — unknown sub-paths
+        // fall back to index.html). The assertion that matters here is that *none* of
+        // them produce a captured entry.
+        (await client.GetAsync("/lookout")).IsSuccessStatusCode.Should().BeTrue();
+        (await client.GetAsync("/lookout/nested/path")).IsSuccessStatusCode.Should().BeTrue();
 
         await Task.Delay(300);
         var rows = await ReadAllAsync(dbPath);

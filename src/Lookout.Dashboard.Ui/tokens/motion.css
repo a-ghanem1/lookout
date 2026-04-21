@@ -1,0 +1,21 @@
+:root {
+  --duration-instant: 80ms;
+  --duration-hover: 120ms;
+  --duration-layout: 180ms;
+  --duration-modal: 240ms;
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-linear: linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,66 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--color-bg-canvas);
+  color: var(--color-fg-default);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--color-border-default);
+  background: var(--color-bg-subtle);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-md-size);
+  line-height: var(--text-md-line);
+  color: var(--color-fg-default);
+  text-decoration: none;
+}
+
+.brandMark {
+  color: var(--color-accent-fg);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-semibold);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.themeButton {
+  height: var(--space-8);
+  padding: var(--space-0) var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-fg-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  cursor: pointer;
+  transition: background-color var(--duration-hover) var(--ease-out),
+    color var(--duration-hover) var(--ease-out);
+}
+
+.themeButton:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-fg-default);
+}
+
+.main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

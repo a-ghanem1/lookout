@@ -1,0 +1,49 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.status_success {
+  color: var(--color-success-fg);
+  background: var(--color-success-bg-subtle);
+  border-color: var(--color-success-border);
+}
+
+.status_info {
+  color: var(--color-info-fg);
+  background: var(--color-info-bg-subtle);
+  border-color: var(--color-info-border);
+}
+
+.status_warn {
+  color: var(--color-warn-fg);
+  background: var(--color-warn-bg-subtle);
+  border-color: var(--color-warn-border);
+}
+
+.status_error {
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+  border-color: var(--color-error-border);
+}
+
+.status_unknown {
+  color: var(--color-fg-muted);
+  background: var(--color-bg-muted);
+  border-color: var(--color-border-default);
+}
+
+.method {
+  color: var(--color-fg-muted);
+  background: var(--color-bg-muted);
+  border-color: var(--color-border-muted);
+}

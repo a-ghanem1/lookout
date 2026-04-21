@@ -1,0 +1,89 @@
+/* Raw primitives. Do not reference directly in components — use semantic tokens. */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./fonts/inter-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('./fonts/geist-mono-latin.woff2') format('woff2');
+}
+
+:root {
+  /* Neutral — cool-leaning gray scale, 15 steps */
+  --gray-25: #FCFCFD;
+  --gray-50: #F8F9FB;
+  --gray-100: #F1F3F6;
+  --gray-150: #E8EBF0;
+  --gray-200: #DCE0E7;
+  --gray-300: #C1C7D1;
+  --gray-400: #9AA2B1;
+  --gray-500: #6E7687;
+  --gray-600: #4F5667;
+  --gray-700: #373D4C;
+  --gray-800: #252A37;
+  --gray-850: #1C2029;
+  --gray-900: #141821;
+  --gray-950: #0C0F16;
+  --gray-975: #07090E;
+
+  /* Accent — indigo */
+  --accent-50:  #EEF2FF;
+  --accent-100: #E0E7FF;
+  --accent-200: #C7D2FE;
+  --accent-300: #A5B4FC;
+  --accent-400: #818CF8;
+  --accent-500: #6366F1;
+  --accent-600: #4F46E5;
+  --accent-700: #4338CA;
+  --accent-800: #3730A3;
+  --accent-900: #312E81;
+  --accent-950: #1E1B4B;
+
+  /* Success — green */
+  --success-50:  #ECFDF5;
+  --success-100: #D1FAE5;
+  --success-500: #10B981;
+  --success-600: #059669;
+  --success-700: #047857;
+  --success-900: #064E3B;
+
+  /* Warn — amber */
+  --warn-50:  #FFFBEB;
+  --warn-100: #FEF3C7;
+  --warn-500: #F59E0B;
+  --warn-600: #D97706;
+  --warn-700: #B45309;
+  --warn-900: #78350F;
+
+  /* Error — red */
+  --error-50:  #FEF2F2;
+  --error-100: #FEE2E2;
+  --error-500: #EF4444;
+  --error-600: #DC2626;
+  --error-700: #B91C1C;
+  --error-900: #7F1D1D;
+
+  /* Info — sky */
+  --info-50:  #F0F9FF;
+  --info-100: #E0F2FE;
+  --info-500: #0EA5E9;
+  --info-600: #0284C7;
+  --info-700: #0369A1;
+  --info-900: #0C4A6E;
+
+  /* Special — violet */
+  --special-50:  #F5F3FF;
+  --special-100: #EDE9FE;
+  --special-500: #8B5CF6;
+  --special-600: #7C3AED;
+  --special-700: #6D28D9;
+  --special-900: #4C1D95;
+}

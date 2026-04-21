@@ -14,6 +14,15 @@ internal sealed class SqliteConnectionFactory : ISqliteConnectionFactory, IDispo
     {
         _dbPath = options.StoragePath;
         _connectionString = new SqliteConnectionStringBuilder { DataSource = _dbPath }.ToString();
+
+        // SQLite refuses to create the DB file if its parent directory is missing
+        // (error 14). Create it up-front so the first OpenAsync succeeds.
+        if (_dbPath != ":memory:")
+        {
+            var dir = Path.GetDirectoryName(Path.GetFullPath(_dbPath));
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+        }
     }
 
     public async Task<SqliteConnection> OpenAsync(CancellationToken ct = default)
@@ -39,13 +48,6 @@ internal sealed class SqliteConnectionFactory : ISqliteConnectionFactory, IDispo
         try
         {
             if (_initialized) return;
-
-            if (_dbPath != ":memory:")
-            {
-                var dir = Path.GetDirectoryName(Path.GetFullPath(_dbPath));
-                if (!string.IsNullOrEmpty(dir))
-                    Directory.CreateDirectory(dir);
-            }
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = LoadSchema();
