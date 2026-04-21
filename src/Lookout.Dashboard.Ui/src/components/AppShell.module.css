@@ -18,19 +18,42 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--text-md-size);
-  line-height: var(--text-md-line);
+  gap: var(--space-3);
   color: var(--color-fg-default);
   text-decoration: none;
 }
 
 .brandMark {
-  width: var(--space-6);
-  height: var(--space-6);
+  width: var(--space-10);
+  height: var(--space-10);
   color: var(--color-accent-fg);
   flex-shrink: 0;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  line-height: 1;
+}
+
+.brandWordmark {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--text-xl-size);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--color-fg-default);
+}
+
+.brandTagline {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--text-3xs-size);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
 }
 
 .actions {

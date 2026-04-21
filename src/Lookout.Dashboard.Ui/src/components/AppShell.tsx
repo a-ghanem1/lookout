@@ -12,9 +12,12 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <a className={styles.brand} href="#/">
-          <LookoutLogo className={styles.brandMark} />
-          Lookout
+        <a className={styles.brand} href="#/" aria-label="Lookout — diagnostics for ASP.NET Core">
+          <LookoutLogo className={styles.brandMark} aria-hidden="true" aria-label={undefined} />
+          <span className={styles.brandText}>
+            <span className={styles.brandWordmark}>lookout</span>
+            <span className={styles.brandTagline}>Diagnostics for ASP.NET Core</span>
+          </span>
         </a>
         <div className={styles.actions}>
           <button
