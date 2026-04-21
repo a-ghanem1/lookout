@@ -61,6 +61,9 @@ public sealed class LookoutOptions
     /// <summary>Redaction configuration for headers, query parameters, and form fields.</summary>
     public RedactionOptions Redaction { get; set; } = new();
 
+    /// <summary>EF Core capture configuration.</summary>
+    public EfOptions Ef { get; set; } = new();
+
     /// <summary>
     /// Custom redaction callback applied in the flusher after the default redactors.
     /// Return a (possibly modified) entry; return the input unchanged to pass through.

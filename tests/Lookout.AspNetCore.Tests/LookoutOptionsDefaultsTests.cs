@@ -129,4 +129,28 @@ public sealed class LookoutOptionsDefaultsTests
         _sut.Redaction.JsonFields.Contains("Password").Should().BeTrue();
         _sut.Redaction.JsonFields.Contains("API_KEY").Should().BeTrue();
     }
+
+    [Fact]
+    public void Ef_DefaultsToNonNullInstance()
+    {
+        _sut.Ef.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Ef_CaptureParameterValues_DefaultsToTrue()
+    {
+        _sut.Ef.CaptureParameterValues.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Ef_CaptureParameterTypesOnly_DefaultsToFalse()
+    {
+        _sut.Ef.CaptureParameterTypesOnly.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Ef_MaxStackFrames_DefaultsTo20()
+    {
+        _sut.Ef.MaxStackFrames.Should().Be(20);
+    }
 }

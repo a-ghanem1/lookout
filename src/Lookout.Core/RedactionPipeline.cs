@@ -72,6 +72,16 @@ public static class RedactionPipeline
         }
     }
 
+    /// <summary>
+    /// Returns <c>***</c> if <paramref name="paramName"/> is a configured sensitive SQL parameter;
+    /// otherwise returns <paramref name="value"/> unchanged.
+    /// </summary>
+    public static string? RedactSqlParameterValue(string paramName, string? value, RedactionOptions options)
+    {
+        if (value is null) return null;
+        return options.SqlParameters.Contains(paramName) ? Mask : value;
+    }
+
     private static bool NeedsRedaction(string key, RedactionOptions options) =>
         options.Headers.Contains(key) ||
         options.QueryParams.Contains(key) ||
