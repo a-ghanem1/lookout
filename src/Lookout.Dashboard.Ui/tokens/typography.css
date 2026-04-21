@@ -1,8 +1,8 @@
-/* Typography tokens. Inter for chrome, Geist Mono for data. */
+/* Typography tokens. Inter for chrome, JetBrains Mono for data. */
 
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   /* Scale: size / line-height pairs */
   --text-3xs-size: 10px;

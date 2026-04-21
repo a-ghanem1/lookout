@@ -9,11 +9,11 @@
 }
 
 @font-face {
-  font-family: 'Geist Mono';
+  font-family: 'JetBrains Mono';
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 400 700;
   font-display: swap;
-  src: url('./fonts/geist-mono-latin.woff2') format('woff2');
+  src: url('./fonts/jetbrains-mono-latin.woff2') format('woff2');
 }
 
 :root {
