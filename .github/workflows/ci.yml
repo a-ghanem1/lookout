@@ -35,8 +35,17 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      # Build the Vite bundle once per job here so MSBuild never runs `npm ci`
+      # in parallel across inner TFM builds (a race that causes ENOTEMPTY on
+      # macOS APFS with npm 10.x).  SkipDashboardUiBuild=true tells MSBuild to
+      # skip the npm targets; wwwroot/ already exists so embedded resources are
+      # picked up correctly.
+      - name: Build dashboard UI
+        working-directory: src/Lookout.Dashboard.Ui
+        run: npm ci && npm run build
+
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build --no-restore -c Release -p:SkipDashboardUiBuild=true
 
       - name: Test
         run: dotnet test --no-build -c Release --logger trx --results-directory ./test-results
