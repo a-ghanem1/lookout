@@ -48,23 +48,13 @@
   </Target>
 
   <!--
-    Glob the built bundle into embedded resources. Top-level so MSBuild picks up the
-    files during project evaluation. In cross-target solution builds this works because
-    the outer BuildDashboardUi_Outer target produces wwwroot before the inner per-TFM
-    MSBuild invocations evaluate their project files. Single-TFM builds get their
-    wwwroot from BuildDashboardUi_Inner and a second pass of the same target during
-    AssignTargetPaths batching.
-    LogicalName starts with 'LookoutUi/' so the C# side can look assets up by their
-    relative path.
+    Inject embedded-resource items dynamically so MSBuild always sees the files that
+    the current npm build produced. A static top-level <ItemGroup> glob would be
+    evaluated at project-load time (before any targets run) and would pick up stale
+    content-hashed filenames committed in a previous build, causing CS1566 when Vite
+    replaces them. LogicalName starts with 'LookoutUi/' so the C# side can resolve
+    assets by their relative path.
   -->
-  <ItemGroup Condition="Exists('$(DashboardWebRoot)')">
-    <EmbeddedResource Include="$(DashboardWebRoot)\**\*.*">
-      <LogicalName>LookoutUi/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <!-- Belt-and-braces: also inject items dynamically from the inner build target, so
-       a cold single-TFM build (no prior wwwroot) still sees them by AssignCulture. -->
   <Target Name="AddDashboardEmbeddedResources"
           BeforeTargets="AssignCulture;PrepareResourceNames;CoreCompile"
           DependsOnTargets="BuildDashboardUi_Inner"

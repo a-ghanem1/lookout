@@ -39,6 +39,11 @@ dist/
 .vite/
 *.local
 
+# Vite build output — content-hashed filenames change on every build, so
+# tracking them causes CS1566 when CI checks out stale hashes and Vite
+# re-hashes them before MSBuild embeds the files.
+src/Lookout.Dashboard/wwwroot/
+
 # npm / yarn / pnpm
 .pnpm-debug.log*
 npm-debug.log*
