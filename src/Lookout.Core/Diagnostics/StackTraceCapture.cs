@@ -14,13 +14,25 @@ public static class StackTraceCapture
     // Cache resolved method names; file+line come from the live frame.
     private static readonly ConcurrentDictionary<MethodBase, string> _nameCache = new();
 
+    // Prefix-matched: catches all sub-assemblies (e.g. Microsoft.EntityFrameworkCore.Sqlite).
     private static readonly string[] _noisePrefixes =
     [
         "Microsoft.EntityFrameworkCore",
         "System",
         "Microsoft.AspNetCore",
-        "Lookout",
     ];
+
+    // Exact-matched: product assemblies only — prevents test / consumer assemblies whose names
+    // begin with "Lookout." from being incorrectly treated as noise.
+    private static readonly HashSet<string> _noiseExact = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Lookout.Core",
+        "Lookout.EntityFrameworkCore",
+        "Lookout.AspNetCore",
+        "Lookout.Storage.Sqlite",
+        "Lookout.Dashboard",
+        "Lookout.Benchmarks",
+    };
 
     /// <summary>
     /// Returns up to <paramref name="maxFrames"/> user-code frames, skipping
@@ -59,6 +71,7 @@ public static class StackTraceCapture
     /// <summary>Returns <c>true</c> if the assembly name belongs to a known noise set.</summary>
     internal static bool IsNoiseAssembly(string assemblyName)
     {
+        if (_noiseExact.Contains(assemblyName)) return true;
         foreach (var prefix in _noisePrefixes)
         {
             if (assemblyName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))

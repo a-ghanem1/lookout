@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.Text.Json;
 using Lookout.Core;
+using Lookout.Core.Diagnostics;
 using Lookout.Core.Schemas;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
@@ -88,7 +89,7 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
             RowsAffected: rowsAffected,
             DbContextType: dbContextType,
             CommandType: commandType,
-            Stack: Array.Empty<EfStackFrame>());
+            Stack: StackTraceCapture.Capture(skipFrames: 0, _efOptions.MaxStackFrames));
 
         var tags = new Dictionary<string, string>(StringComparer.Ordinal)
         {

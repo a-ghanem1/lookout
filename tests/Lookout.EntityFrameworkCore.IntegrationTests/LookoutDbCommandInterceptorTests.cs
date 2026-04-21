@@ -73,7 +73,7 @@ public sealed class LookoutDbCommandInterceptorTests
             content!.CommandText.Should().NotBeNullOrEmpty();
             content.DurationMs.Should().BeGreaterThanOrEqualTo(0);
             content.CommandType.Should().Be(EfCommandType.Reader);
-            content.Stack.Should().BeEmpty("stack capture is deferred to M4.3");
+            content.Stack.Should().NotBeEmpty("M4.3 enables stack capture by default");
         }
     }
 
@@ -281,6 +281,78 @@ public sealed class LookoutDbCommandInterceptorTests
 
             var content = JsonSerializer.Deserialize<EfEntryContent>(entry.Content, LookoutJson.Options)!;
             content.DbContextType.Should().Contain(nameof(TestDbContext));
+        }
+    }
+
+    [Fact]
+    public async Task StackTrace_ContainsTestMethodFrame_ExcludesFrameworkFrames()
+    {
+        var (interceptor, recorder) = BuildInterceptor();
+        var (ctx, conn) = await BuildContextAsync(interceptor);
+        await using (ctx) await using (conn)
+        {
+            recorder.Clear();
+
+            // Use sync ToList() so the synchronous call stack is preserved all the way
+            // up to this method. ToListAsync() breaks the stack at the await continuation.
+            _ = ctx.Widgets.ToList();
+
+            var entry = recorder.Entries.First(e => e.Type == "ef");
+            var content = JsonSerializer.Deserialize<EfEntryContent>(entry.Content, LookoutJson.Options)!;
+
+            content.Stack.Should().NotBeEmpty("interceptor records user-code frames by default");
+
+            // EF Core and ASP.NET Core framework frames must be absent.
+            // Note: System.* frames are also filtered, but async state-machine method names
+            // can include compiler-generated types whose namespace varies across runtimes.
+            content.Stack.Should().NotContain(
+                f => f.Method.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase)
+                  || f.Method.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase),
+                "EF Core and ASP.NET Core framework frames must be filtered out");
+
+            content.Stack.Should().Contain(
+                f => f.Method.Contains(nameof(StackTrace_ContainsTestMethodFrame_ExcludesFrameworkFrames)),
+                "the calling test method must appear in the user-code stack");
+        }
+    }
+
+    [Fact]
+    public async Task StackTrace_RespectsMaxStackFramesCap()
+    {
+        var (interceptor, recorder) = BuildInterceptor(o => o.Ef.MaxStackFrames = 1);
+        var (ctx, conn) = await BuildContextAsync(interceptor);
+        await using (ctx) await using (conn)
+        {
+            recorder.Clear();
+
+            var _ = await ctx.Widgets.ToListAsync();
+
+            var entry = recorder.Entries.First(e => e.Type == "ef");
+            var content = JsonSerializer.Deserialize<EfEntryContent>(entry.Content, LookoutJson.Options)!;
+
+            content.Stack.Should().HaveCountLessThanOrEqualTo(1,
+                "MaxStackFrames = 1 must limit captured frames to at most 1");
+        }
+    }
+
+    [Fact]
+    public async Task StackTrace_MethodNameAlwaysPresent_FileAndLineNullable()
+    {
+        var (interceptor, recorder) = BuildInterceptor();
+        var (ctx, conn) = await BuildContextAsync(interceptor);
+        await using (ctx) await using (conn)
+        {
+            recorder.Clear();
+
+            var _ = await ctx.Widgets.ToListAsync();
+
+            var entry = recorder.Entries.First(e => e.Type == "ef");
+            var content = JsonSerializer.Deserialize<EfEntryContent>(entry.Content, LookoutJson.Options)!;
+
+            content.Stack.Should().NotBeEmpty();
+            content.Stack.Should().OnlyContain(
+                f => !string.IsNullOrEmpty(f.Method),
+                "Method must always be present regardless of PDB availability; File and Line are nullable");
         }
     }
 }
