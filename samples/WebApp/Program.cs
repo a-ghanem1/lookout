@@ -1,7 +1,11 @@
 using Lookout.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddLookout();
+builder.Services.AddLookout(o =>
+{
+    o.CaptureRequestBody = true;
+    o.CaptureResponseBody = true;
+});
 
 var app = builder.Build();
 app.UseLookout();

@@ -7,6 +7,17 @@
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     <DashboardUiDir>$(MSBuildThisFileDirectory)..\Lookout.Dashboard.Ui</DashboardUiDir>
     <DashboardWebRoot>$(MSBuildThisFileDirectory)wwwroot</DashboardWebRoot>
+    <!--
+      On Unix, source nvm.sh and activate the default node version before invoking
+      npm. Using ';' (not '&&') so that each step runs regardless of prior exit
+      codes — nvm use can return non-zero even when it succeeds. Machines that use
+      Volta, Homebrew, or a system-level install will have npm already on PATH and
+      the nvm preamble is a silent no-op.
+    -->
+    <_NpmCi Condition="'$(OS)' != 'Windows_NT'">bash -c '. $HOME/.nvm/nvm.sh 2>/dev/null; nvm use node 2>/dev/null; npm ci'</_NpmCi>
+    <_NpmCi Condition="'$(OS)' == 'Windows_NT'">npm ci</_NpmCi>
+    <_NpmBuild Condition="'$(OS)' != 'Windows_NT'">bash -c '. $HOME/.nvm/nvm.sh 2>/dev/null; nvm use node 2>/dev/null; npm run build'</_NpmBuild>
+    <_NpmBuild Condition="'$(OS)' == 'Windows_NT'">npm run build</_NpmBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,16 +35,16 @@
           BeforeTargets="DispatchToInnerBuilds"
           Condition="'$(IsCrossTargetingBuild)' == 'true' AND '$(SkipDashboardUiBuild)' != 'true' AND Exists('$(DashboardUiDir)\package.json')">
     <Message Importance="high" Text="Building Lookout dashboard UI at $(DashboardUiDir)" />
-    <Exec Command="npm ci" WorkingDirectory="$(DashboardUiDir)" />
-    <Exec Command="npm run build" WorkingDirectory="$(DashboardUiDir)" />
+    <Exec Command="$(_NpmCi)" WorkingDirectory="$(DashboardUiDir)" />
+    <Exec Command="$(_NpmBuild)" WorkingDirectory="$(DashboardUiDir)" />
   </Target>
 
   <Target Name="BuildDashboardUi_Inner"
           BeforeTargets="PrepareForBuild"
           Condition="'$(IsCrossTargetingBuild)' != 'true' AND '$(SkipDashboardUiBuild)' != 'true' AND Exists('$(DashboardUiDir)\package.json') AND !Exists('$(DashboardWebRoot)\index.html')">
     <Message Importance="high" Text="Building Lookout dashboard UI (single-TFM) at $(DashboardUiDir)" />
-    <Exec Command="npm ci" WorkingDirectory="$(DashboardUiDir)" />
-    <Exec Command="npm run build" WorkingDirectory="$(DashboardUiDir)" />
+    <Exec Command="$(_NpmCi)" WorkingDirectory="$(DashboardUiDir)" />
+    <Exec Command="$(_NpmBuild)" WorkingDirectory="$(DashboardUiDir)" />
   </Target>
 
   <!--
