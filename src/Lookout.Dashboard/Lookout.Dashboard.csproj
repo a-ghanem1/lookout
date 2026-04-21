@@ -61,9 +61,20 @@
           Condition="Exists('$(DashboardWebRoot)')">
     <ItemGroup>
       <_DashboardAsset Include="$(DashboardWebRoot)\**\*.*" />
+      <!--
+        SplitResourcesByCulture runs as a *dependency* of PrepareResourceNames and therefore
+        executes BEFORE BeforeTargets="PrepareResourceNames" fires.  That means our
+        dynamically-added items are never visited by SplitResourcesByCulture and miss the
+        Type/WithCulture metadata that _CoreCompileResourceInputs requires.  We set all three
+        metadata explicitly so the SDK resource pipeline lets the items through without any
+        additional processing.
+      -->
       <EmbeddedResource Include="@(_DashboardAsset)"
                         Exclude="@(EmbeddedResource)">
         <LogicalName>LookoutUi/%(_DashboardAsset.RecursiveDir)%(_DashboardAsset.Filename)%(_DashboardAsset.Extension)</LogicalName>
+        <ManifestResourceName>LookoutUi/%(_DashboardAsset.RecursiveDir)%(_DashboardAsset.Filename)%(_DashboardAsset.Extension)</ManifestResourceName>
+        <Type>Non-Resx</Type>
+        <WithCulture>false</WithCulture>
       </EmbeddedResource>
     </ItemGroup>
   </Target>
