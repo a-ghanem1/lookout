@@ -142,7 +142,8 @@ function RequestRow({ entry }: { entry: EntryDto }) {
   const user = entry.tags['http.user'] ?? content?.user ?? '';
 
   const go = () => {
-    window.location.hash = `#/requests/${encodeURIComponent(entry.id)}`;
+    const target = entry.requestId ?? entry.id;
+    window.location.hash = `#/requests/${encodeURIComponent(target)}`;
   };
 
   return (

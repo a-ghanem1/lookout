@@ -255,6 +255,39 @@ public sealed class LookoutApiEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task GetRequestEntries_ReturnsMixedHttpAndEfEntries_InTimestampOrder()
+    {
+        var dbPath = TempDbPath();
+        var rid = "req-mixed";
+        await SeedAsync(dbPath,
+            MakeHttp("GET", "/orders", 200, offsetMs: -3000, requestId: rid),
+            MakeEf("SELECT * FROM products WHERE id = @p0", offsetMs: -2500, requestId: rid, rowsAffected: 1),
+            MakeEf("SELECT * FROM orders", offsetMs: -2000, requestId: rid, rowsAffected: 3));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync($"/lookout/api/requests/{rid}");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var dtos = await resp.Content.ReadFromJsonAsync<EntryDto[]>(LookoutJson.Options);
+        await app.StopAsync();
+
+        dtos.Should().NotBeNull();
+        var list = dtos!;
+        list.Should().HaveCount(3);
+        list.Select(e => e.Type).Should().ContainInOrder("http", "ef", "ef");
+        list.All(e => e.RequestId == rid).Should().BeTrue();
+        list.Select(e => e.Timestamp).Should().BeInAscendingOrder();
+
+        // EF content round-trips: commandText and parameters visible from the API.
+        var firstEf = list[1];
+        firstEf.Content.GetProperty("commandText").GetString()
+            .Should().Contain("SELECT");
+        firstEf.Content.GetProperty("parameters").GetArrayLength().Should().BeGreaterThan(0);
+        firstEf.Content.GetProperty("rowsAffected").GetInt32().Should().Be(1);
+    }
+
+    [Fact]
     public async Task ApiCalls_AreNeverSelfCaptured()
     {
         var dbPath = TempDbPath();
@@ -333,6 +366,35 @@ public sealed class LookoutApiEndpointsTests : IDisposable
 
     private static Task SeedHttpAsync(string dbPath, params LookoutEntry[] entries) =>
         SeedAsync(dbPath, entries);
+
+    private static LookoutEntry MakeEf(
+        string sql, long offsetMs, string? requestId, int? rowsAffected)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        var content = new EfEntryContent(
+            CommandText: sql,
+            Parameters: new List<EfParameter> { new("@p0", "1", "Int32") },
+            DurationMs: 1.0,
+            RowsAffected: rowsAffected,
+            DbContextType: "WebApp.SampleDbContext",
+            CommandType: EfCommandType.Reader,
+            Stack: new List<EfStackFrame>
+            {
+                new("WebApp.Program.<Main>$", "Program.cs", 42),
+            });
+
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "ef",
+            Timestamp: ts,
+            RequestId: requestId,
+            DurationMs: 1.0,
+            Tags: new Dictionary<string, string>
+            {
+                ["db.system"] = "ef",
+            },
+            Content: JsonSerializer.Serialize(content, LookoutJson.Options));
+    }
 
     private static async Task SeedAsync(string dbPath, params LookoutEntry[] entries)
     {

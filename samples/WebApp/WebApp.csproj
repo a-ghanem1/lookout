@@ -5,7 +5,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Lookout.AspNetCore\Lookout.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Lookout.EntityFrameworkCore\Lookout.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\Lookout.Storage.Sqlite\Lookout.Storage.Sqlite.csproj" />
   </ItemGroup>
 

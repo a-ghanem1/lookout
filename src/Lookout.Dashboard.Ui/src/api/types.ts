@@ -28,6 +28,30 @@ export interface HttpEntryContent {
   user?: string;
 }
 
+export type EfCommandType = 'Query' | 'NonQuery' | 'Reader' | 'Scalar';
+
+export interface EfParameter {
+  name: string;
+  value?: string | null;
+  dbType?: string | null;
+}
+
+export interface EfStackFrame {
+  method: string;
+  file?: string | null;
+  line?: number | null;
+}
+
+export interface EfEntryContent {
+  commandText: string;
+  parameters: EfParameter[];
+  durationMs: number;
+  rowsAffected?: number | null;
+  dbContextType?: string | null;
+  commandType: EfCommandType;
+  stack: EfStackFrame[];
+}
+
 export interface EntryListResponse {
   entries: EntryDto[];
   nextBefore?: number | null;

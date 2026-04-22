@@ -1,6 +1,10 @@
 using System.Net;
+using System.Text.Json;
 using FluentAssertions;
+using Lookout.Core;
+using Lookout.Core.Schemas;
 using Lookout.Dashboard;
+using Lookout.Storage.Sqlite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -139,6 +143,75 @@ public sealed class DashboardEmbedTests : IDisposable
         await app.StopAsync();
 
         body.Should().Contain("<base href=\"/diag/\">");
+    }
+
+    [Fact]
+    public async Task DetailRoute_WithMixedHttpAndEfEntries_LoadsIndexAndReturnsAllEntries()
+    {
+        if (!HasEmbeddedAssets()) return;
+
+        var dbPath = TempDbPath();
+        const string rid = "req-mixed-embed";
+
+        // Seed 1 HTTP + 2 EF entries sharing the same request id.
+        using (var storage = new SqliteLookoutStorage(new LookoutOptions { StoragePath = dbPath }))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var http = new LookoutEntry(
+                Id: Guid.NewGuid(), Type: "http", Timestamp: now.AddMilliseconds(-300),
+                RequestId: rid, DurationMs: 1.0,
+                Tags: new Dictionary<string, string> { ["http.path"] = "/orders" },
+                Content: JsonSerializer.Serialize(
+                    new HttpEntryContent("GET", "/orders", "", 200, 1.0,
+                        new Dictionary<string, string>(), new Dictionary<string, string>(),
+                        null, null, null),
+                    LookoutJson.Options));
+            var ef1 = new LookoutEntry(
+                Id: Guid.NewGuid(), Type: "ef", Timestamp: now.AddMilliseconds(-200),
+                RequestId: rid, DurationMs: 0.5,
+                Tags: new Dictionary<string, string> { ["db.system"] = "ef" },
+                Content: JsonSerializer.Serialize(
+                    new EfEntryContent("SELECT 1",
+                        new List<EfParameter>(), 0.5, 1, "Db", EfCommandType.Scalar,
+                        new List<EfStackFrame>()),
+                    LookoutJson.Options));
+            var ef2 = new LookoutEntry(
+                Id: Guid.NewGuid(), Type: "ef", Timestamp: now.AddMilliseconds(-100),
+                RequestId: rid, DurationMs: 0.8,
+                Tags: new Dictionary<string, string> { ["db.system"] = "ef" },
+                Content: JsonSerializer.Serialize(
+                    new EfEntryContent("SELECT * FROM orders",
+                        new List<EfParameter>(), 0.8, 3, "Db", EfCommandType.Reader,
+                        new List<EfStackFrame>()),
+                    LookoutJson.Options));
+            await storage.WriteAsync(new[] { http, ef1, ef2 });
+        }
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+        var client = app.GetTestClient();
+
+        // SPA fallback serves index.html for the client-side detail route.
+        var html = await client.GetAsync($"/lookout/requests/{rid}");
+        html.StatusCode.Should().Be(HttpStatusCode.OK);
+        html.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        (await html.Content.ReadAsStringAsync()).Should().Contain("<div id=\"root\">");
+
+        // Bundle assets are discoverable.
+        var jsAsset = FirstEmbeddedWithExtension(".js");
+        jsAsset.Should().NotBeNull();
+        var js = await client.GetAsync($"/lookout/{jsAsset}");
+        js.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // API returns all three entries correlated by requestId.
+        var api = await client.GetAsync($"/lookout/api/requests/{rid}");
+        api.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await api.Content.ReadAsStringAsync();
+        await app.StopAsync();
+
+        body.Should().Contain("\"http\"");
+        body.Should().Contain("\"ef\"");
+        body.Should().Contain("SELECT * FROM orders");
     }
 
     [Fact]

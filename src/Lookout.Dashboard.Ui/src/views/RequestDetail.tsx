@@ -1,12 +1,19 @@
-import { getEntry } from '../api/client';
-import type { EntryDto, HttpEntryContent } from '../api/types';
+import { useState } from 'react';
+import { getRequestEntries } from '../api/client';
+import type {
+  EfEntryContent,
+  EfStackFrame,
+  EntryDto,
+  HttpEntryContent,
+} from '../api/types';
 import { useFetch } from '../api/useFetch';
 import { MethodBadge, StatusBadge } from '../components/Badge';
 import { formatDuration, formatTimestamp, tryPrettyJson } from '../format';
+import { formatSql, sqlPreview } from '../lib/sqlFormatter';
 import styles from './RequestDetail.module.css';
 
 export function RequestDetail({ id }: { id: string }) {
-  const state = useFetch<EntryDto>(`entry:${id}`, (signal) => getEntry(id, signal));
+  const state = useFetch<EntryDto[]>(`request:${id}`, (signal) => getRequestEntries(id, signal));
 
   if (state.loading && !state.data) {
     return (
@@ -19,7 +26,7 @@ export function RequestDetail({ id }: { id: string }) {
     );
   }
 
-  if (state.error || !state.data) {
+  if (state.error || !state.data || state.data.length === 0) {
     return (
       <div className={styles.root}>
         <a className={styles.back} href="#/">
@@ -32,11 +39,27 @@ export function RequestDetail({ id }: { id: string }) {
     );
   }
 
-  return <DetailBody entry={state.data} />;
+  return <DetailBody entries={state.data} />;
 }
 
-export function DetailBody({ entry }: { entry: EntryDto }) {
-  const content = entry.content as HttpEntryContent;
+export function DetailBody({ entries }: { entries: EntryDto[] }) {
+  const http = entries.find((e) => e.type === 'http');
+  const efEntries = entries.filter((e) => e.type === 'ef');
+
+  if (!http) {
+    return (
+      <div className={styles.root}>
+        <a className={styles.back} href="#/">
+          ← Back to requests
+        </a>
+        <div className={styles.notFound} data-testid="detail-not-found">
+          Request not found.
+        </div>
+      </div>
+    );
+  }
+
+  const content = http.content as HttpEntryContent;
   const status = content?.statusCode ?? 0;
 
   return (
@@ -57,16 +80,18 @@ export function DetailBody({ entry }: { entry: EntryDto }) {
       </header>
 
       <section className={styles.meta} data-testid="detail-meta">
-        <Meta label="Time" value={formatTimestamp(entry.timestamp)} />
+        <Meta label="Time" value={formatTimestamp(http.timestamp)} />
         <Meta label="Duration" value={formatDuration(content.durationMs)} />
         <Meta label="User" value={content.user ?? '—'} />
-        <Meta label="Request ID" value={entry.requestId ?? '—'} />
+        <Meta label="Request ID" value={http.requestId ?? '—'} />
       </section>
 
       <HeadersSection title="Request headers" headers={content.requestHeaders} />
       <BodySection title="Request body" body={content.requestBody} />
       <HeadersSection title="Response headers" headers={content.responseHeaders} />
       <BodySection title="Response body" body={content.responseBody} />
+
+      <EfSection entries={efEntries} />
     </div>
   );
 }
@@ -135,5 +160,124 @@ function BodySection({ title, body }: { title: string; body: string | undefined 
         <pre className={styles.code}>{pretty ?? body}</pre>
       </div>
     </details>
+  );
+}
+
+function EfSection({ entries }: { entries: EntryDto[] }) {
+  if (entries.length === 0) {
+    return (
+      <details className={styles.section} data-testid="ef-section">
+        <summary className={styles.sectionSummary}>
+          EF queries <span className={styles.caption}>0</span>
+        </summary>
+        <div className={styles.sectionBody}>
+          <div className={styles.caption}>No queries captured for this request.</div>
+        </div>
+      </details>
+    );
+  }
+
+  return (
+    <details className={styles.section} open data-testid="ef-section">
+      <summary className={styles.sectionSummary}>
+        EF queries <span className={styles.caption}>{entries.length}</span>
+      </summary>
+      <div className={styles.sectionBody}>
+        <ul className={styles.efList}>
+          {entries.map((e) => (
+            <EfRow key={e.id} entry={e} />
+          ))}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
+function EfRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as EfEntryContent;
+  const rows = content.rowsAffected;
+
+  return (
+    <li className={styles.efRow} data-testid="ef-query-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span className={styles.efPreview}>{sqlPreview(content.commandText)}</span>
+        <span className={styles.efMeta}>
+          <span className={styles.efDuration}>{formatDuration(content.durationMs)}</span>
+          {rows !== undefined && rows !== null ? (
+            <span className={styles.efRowsBadge}>{rows} rows</span>
+          ) : null}
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="ef-query-body">
+          <pre className={styles.code}>{formatSql(content.commandText)}</pre>
+          <EfParameters parameters={content.parameters} />
+          <EfStack stack={content.stack} />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function EfParameters({ parameters }: { parameters: EfEntryContent['parameters'] }) {
+  if (!parameters || parameters.length === 0) {
+    return (
+      <div>
+        <div className={styles.metaLabel}>Parameters</div>
+        <div className={styles.caption}>None.</div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className={styles.metaLabel}>Parameters</div>
+      <table className={styles.headersTable}>
+        <tbody>
+          {parameters.map((p, i) => (
+            <tr key={`${p.name}-${i}`}>
+              <td className={styles.headerName}>{p.name}</td>
+              <td className={styles.headerValue}>{p.value ?? <em>null</em>}</td>
+              <td className={styles.headerName}>{p.dbType ?? ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EfStack({ stack }: { stack: EfStackFrame[] }) {
+  if (!stack || stack.length === 0) {
+    return (
+      <div>
+        <div className={styles.metaLabel}>Stack</div>
+        <div className={styles.caption}>No user-code frames captured.</div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className={styles.metaLabel}>Stack</div>
+      <ol className={styles.efStack}>
+        {stack.map((f, i) => (
+          <li key={i} className={styles.efStackFrame}>
+            <span className={styles.efStackMethod}>{f.method}</span>
+            {f.file ? (
+              <span className={styles.efStackLocation}>
+                {' '}
+                {f.file}
+                {f.line != null ? `:${f.line}` : ''}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
