@@ -10,6 +10,8 @@ import { useFetch } from '../api/useFetch';
 import { MethodBadge, StatusBadge } from '../components/Badge';
 import { formatDuration, formatTimestamp, tryPrettyJson } from '../format';
 import { formatSql, sqlPreview } from '../lib/sqlFormatter';
+import type { SyntaxToken, TokenType } from '../lib/syntaxHighlight';
+import { tokenizeJson, tokenizeSql } from '../lib/syntaxHighlight';
 import styles from './RequestDetail.module.css';
 
 export function RequestDetail({ id }: { id: string }) {
@@ -86,15 +88,50 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
         <Meta label="Request ID" value={http.requestId ?? '—'} />
       </section>
 
-      <HeadersSection title="Request headers" headers={content.requestHeaders} />
-      <BodySection title="Request body" body={content.requestBody} />
-      <HeadersSection title="Response headers" headers={content.responseHeaders} />
-      <BodySection title="Response body" body={content.responseBody} />
-
-      <EfSection entries={efEntries} />
+      <div className={styles.detailGrid}>
+        <div className={styles.httpCol}>
+          <HeadersSection title="Request headers" headers={content.requestHeaders} />
+          <BodySection title="Request body" body={content.requestBody} />
+          <HeadersSection title="Response headers" headers={content.responseHeaders} />
+          <BodySection title="Response body" body={content.responseBody} />
+        </div>
+        <div className={styles.sideCol}>
+          <EfSection entries={efEntries} />
+        </div>
+      </div>
     </div>
   );
 }
+
+// ─── Token rendering ──────────────────────────────────────────────────────────
+
+const TOKEN_CLASS: Record<TokenType, string | undefined> = {
+  keyword: styles.tokenKeyword,
+  key: styles.tokenKey,
+  string: styles.tokenString,
+  number: styles.tokenNumber,
+  bool: styles.tokenBool,
+  null: styles.tokenNull,
+  punct: styles.tokenPunct,
+  plain: undefined,
+};
+
+function TokenizedCode({ tokens }: { tokens: SyntaxToken[] }) {
+  return (
+    <pre className={styles.code}>
+      {tokens.map((tok, i) => {
+        const cls = TOKEN_CLASS[tok.type];
+        return (
+          <span key={i} className={cls}>
+            {tok.text}
+          </span>
+        );
+      })}
+    </pre>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Meta({ label, value }: { label: string; value: string }) {
   return (
@@ -157,7 +194,11 @@ function BodySection({ title, body }: { title: string; body: string | undefined 
         {title} <span className={styles.caption}>{body.length} chars</span>
       </summary>
       <div className={styles.sectionBody}>
-        <pre className={styles.code}>{pretty ?? body}</pre>
+        {pretty ? (
+          <TokenizedCode tokens={tokenizeJson(pretty)} />
+        ) : (
+          <pre className={styles.code}>{body}</pre>
+        )}
       </div>
     </details>
   );
@@ -216,7 +257,7 @@ function EfRow({ entry }: { entry: EntryDto }) {
       </button>
       {open ? (
         <div className={styles.efRowBody} data-testid="ef-query-body">
-          <pre className={styles.code}>{formatSql(content.commandText)}</pre>
+          <TokenizedCode tokens={tokenizeSql(formatSql(content.commandText))} />
           <EfParameters parameters={content.parameters} />
           <EfStack stack={content.stack} />
         </div>

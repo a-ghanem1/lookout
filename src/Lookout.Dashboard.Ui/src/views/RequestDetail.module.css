@@ -1,5 +1,6 @@
 .root {
   max-width: 1100px;
+  margin: 0 auto;
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
@@ -40,7 +41,7 @@
 
 .meta {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
   gap: var(--space-3) var(--space-4);
   padding: var(--space-4);
   background: var(--color-bg-subtle);
@@ -65,6 +66,41 @@
   color: var(--color-fg-default);
   word-break: break-all;
 }
+
+/* ─── Two-column layout ─────────────────────────────────────────────────── */
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+}
+
+.httpCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.sideCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .root {
+    max-width: 1600px;
+  }
+
+  .detailGrid {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+
+/* ─── Sections ──────────────────────────────────────────────────────────── */
 
 .section {
   border: 1px solid var(--color-border-default);
@@ -95,6 +131,8 @@
   padding: var(--space-4);
 }
 
+/* ─── Headers table ─────────────────────────────────────────────────────── */
+
 .headersTable {
   width: 100%;
   border-collapse: collapse;
@@ -119,6 +157,8 @@
   word-break: break-all;
 }
 
+/* ─── Code block ────────────────────────────────────────────────────────── */
+
 .code {
   margin: 0;
   padding: var(--space-4);
@@ -133,6 +173,41 @@
   white-space: pre;
 }
 
+/* ─── Syntax highlight tokens ───────────────────────────────────────────── */
+
+/* SQL keywords / JSON booleans */
+.tokenKeyword,
+.tokenBool {
+  color: var(--color-info-fg);
+}
+
+/* JSON object keys */
+.tokenKey {
+  color: var(--color-accent-fg);
+}
+
+/* String values */
+.tokenString {
+  color: var(--color-success-fg);
+}
+
+/* Numeric values */
+.tokenNumber {
+  color: var(--color-warn-fg);
+}
+
+/* null literal */
+.tokenNull {
+  color: var(--color-special-fg);
+}
+
+/* Punctuation (braces, brackets, colons, commas) */
+.tokenPunct {
+  color: var(--color-fg-muted);
+}
+
+/* ─── Misc ──────────────────────────────────────────────────────────────── */
+
 .caption {
   color: var(--color-fg-muted);
   font-size: var(--text-xs-size);
@@ -145,6 +220,8 @@
   text-align: center;
   color: var(--color-fg-muted);
 }
+
+/* ─── EF query list ─────────────────────────────────────────────────────── */
 
 .efList {
   list-style: none;
@@ -164,6 +241,7 @@
 
 .efRowHeader {
   all: unset;
+  box-sizing: border-box;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -207,8 +285,9 @@
 
 .efDuration {
   color: var(--color-fg-muted);
-  font-size: var(--text-2xs-size);
-  line-height: var(--text-2xs-line);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  white-space: nowrap;
 }
 
 .efRowsBadge {
