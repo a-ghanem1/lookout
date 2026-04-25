@@ -1,5 +1,6 @@
 using Lookout.AspNetCore;
 using Lookout.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +58,46 @@ app.MapGet("/orders", async (SampleDbContext db) =>
             o.PlacedAt,
         })
         .ToListAsync());
+
+// N+1 demo endpoint: loads all orders then fetches each customer individually.
+// With 3 seeded orders Lookout detects 3 identical-shape customer queries and raises the N+1 banner.
+// Open /lookout after hitting this endpoint to see the red N+1 indicator.
+app.MapGet("/orders/n1", async (SampleDbContext db) =>
+{
+    var orders = await db.Orders.AsNoTracking().ToListAsync();
+
+    var results = new List<object>(orders.Count);
+    foreach (var order in orders)
+    {
+        // Classic N+1: one extra query per order instead of a JOIN.
+        var customer = await db.Customers
+            .AsNoTracking()
+            .Where(c => c.Id == order.CustomerId)
+            .SingleOrDefaultAsync();
+        results.Add(new { order.Id, Customer = customer?.Name ?? "—", order.Quantity });
+    }
+
+    return results;
+});
+
+// Raw ADO.NET demo endpoint: issues a query via Microsoft.Data.Sqlite directly (no EF).
+// Lookout captures raw ADO.NET via DiagnosticListener for SQL Server (SqlClientDiagnosticListener).
+// SQLite does not publish to that source, so this query will not appear in the Lookout dashboard.
+// The endpoint exists to confirm the code path compiles and runs; the capture is verified by
+// the integration tests in Lookout.AspNetCore.Tests for SQL Server-compatible scenarios.
+app.MapGet("/products/raw-sql", async () =>
+{
+    await using var conn = new SqliteConnection("Data Source=sample.db");
+    await conn.OpenAsync();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = "SELECT Id, Name, Price FROM Products ORDER BY Name";
+    await using var reader = await cmd.ExecuteReaderAsync();
+
+    var products = new List<object>();
+    while (await reader.ReadAsync())
+        products.Add(new { Id = reader.GetInt32(0), Name = reader.GetString(1), Price = reader.GetDecimal(2) });
+    return products;
+});
 
 app.MapLookout();
 
