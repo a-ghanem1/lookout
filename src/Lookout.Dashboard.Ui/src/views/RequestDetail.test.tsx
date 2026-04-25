@@ -117,10 +117,9 @@ describe('RequestDetail', () => {
     expect(screen.queryByTestId('ef-query-body')).not.toBeInTheDocument();
   });
 
-  it('shows an empty-state DB section when no db entries exist', () => {
+  it('hides the DB section entirely when no db entries exist', () => {
     render(<DetailBody entries={[httpEntry]} />);
-    const section = screen.getByTestId('db-section');
-    expect(section).toHaveTextContent(/No queries captured/);
+    expect(screen.queryByTestId('db-section')).not.toBeInTheDocument();
   });
 
   it('renders not-found when no http entry is present', () => {

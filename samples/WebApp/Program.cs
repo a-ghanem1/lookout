@@ -1,6 +1,5 @@
 using Lookout.AspNetCore;
 using Lookout.EntityFrameworkCore;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -80,24 +79,18 @@ app.MapGet("/orders/n1", async (SampleDbContext db) =>
     return results;
 });
 
-// Raw ADO.NET demo endpoint: issues a query via Microsoft.Data.Sqlite directly (no EF).
-// Lookout captures raw ADO.NET via DiagnosticListener for SQL Server (SqlClientDiagnosticListener).
-// SQLite does not publish to that source, so this query will not appear in the Lookout dashboard.
-// The endpoint exists to confirm the code path compiles and runs; the capture is verified by
-// the integration tests in Lookout.AspNetCore.Tests for SQL Server-compatible scenarios.
-app.MapGet("/products/raw-sql", async () =>
-{
-    await using var conn = new SqliteConnection("Data Source=sample.db");
-    await conn.OpenAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT Id, Name, Price FROM Products ORDER BY Name";
-    await using var reader = await cmd.ExecuteReaderAsync();
-
-    var products = new List<object>();
-    while (await reader.ReadAsync())
-        products.Add(new { Id = reader.GetInt32(0), Name = reader.GetString(1), Price = reader.GetDecimal(2) });
-    return products;
-});
+// Raw SQL demo endpoint: hand-written SQL executed via EF's FromSqlRaw — captured by the EF interceptor.
+// Shows up in Lookout with the SQL text exactly as written. The "EF" source badge reflects that
+// it flows through the EF pipeline; the SQL itself is fully hand-written, not LINQ-generated.
+// Note: Microsoft.Data.Sqlite does not publish to SqlClientDiagnosticListener, so bypassing EF
+// entirely (raw SqliteConnection) would produce no capture. SQL Server apps work out of the box
+// via AdoNetDiagnosticSubscriber without needing FromSqlRaw.
+app.MapGet("/products/raw-sql", async (SampleDbContext db) =>
+    await db.Products
+        .FromSqlRaw("SELECT Id, Name, Price FROM Products ORDER BY Name")
+        .AsNoTracking()
+        .Select(p => new { p.Id, p.Name, p.Price })
+        .ToListAsync());
 
 app.MapLookout();
 

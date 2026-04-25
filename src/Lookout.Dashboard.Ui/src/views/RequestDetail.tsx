@@ -63,6 +63,7 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
 
   const content = http.content as HttpEntryContent;
   const status = content?.statusCode ?? 0;
+  const hasDbEntries = entries.some((e) => e.type === 'ef' || e.type === 'sql');
 
   return (
     <div className={styles.root} data-testid="request-detail">
@@ -89,15 +90,17 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
       </section>
 
       <div className={styles.detailGrid}>
-        <div className={styles.httpCol}>
+        <div className={`${styles.httpCol} ${!hasDbEntries ? styles.httpColFull : ''}`}>
           <HeadersSection title="Request headers" headers={content.requestHeaders} />
           <BodySection title="Request body" body={content.requestBody} />
           <HeadersSection title="Response headers" headers={content.responseHeaders} />
           <BodySection title="Response body" body={content.responseBody} />
         </div>
-        <div className={styles.sideCol}>
-          <DbPanel allEntries={entries} />
-        </div>
+        {hasDbEntries && (
+          <div className={styles.sideCol}>
+            <DbPanel allEntries={entries} />
+          </div>
+        )}
       </div>
     </div>
   );
