@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Lookout.Core;
+using Lookout.Core.Diagnostics;
 using Lookout.Core.Schemas;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -90,6 +92,10 @@ internal sealed class LookoutRequestMiddleware
             context.Response.Body = responseCapture;
         }
 
+        // Create per-request N+1 detection scope. DB entries (EF + ADO) are buffered here
+        // and flushed — with N+1 tags — after the request completes.
+        using var n1Scope = N1RequestScope.Begin(_options.Ef);
+
         var startTimestamp = Stopwatch.GetTimestamp();
         try
         {
@@ -101,12 +107,25 @@ internal sealed class LookoutRequestMiddleware
                 context.Response.Body = originalResponseBody;
 
             var durationMs = ElapsedMs(startTimestamp);
+
+            // Flush buffered DB entries with N+1 tags applied.
+            IReadOnlyList<N1Group> n1Groups = Array.Empty<N1Group>();
+            try
+            {
+                n1Groups = n1Scope.Complete(_recorder);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Lookout N+1 detection failed for {Method} {Path}.",
+                    context.Request.Method, path);
+            }
+
             try
             {
                 Capture(
                     context, path, durationMs, requestId, requestHeaders,
                     requestContentType, requestBody, requestBodyTruncated,
-                    responseCapture);
+                    responseCapture, n1Scope.DbCount, n1Groups);
             }
             catch (Exception ex)
             {
@@ -142,7 +161,9 @@ internal sealed class LookoutRequestMiddleware
         string? requestContentType,
         string? requestBody,
         bool requestBodyTruncated,
-        CapturingResponseStream? responseCapture)
+        CapturingResponseStream? responseCapture,
+        int dbCount,
+        IReadOnlyList<N1Group> n1Groups)
     {
         var req = context.Request;
         var res = context.Response;
@@ -181,10 +202,16 @@ internal sealed class LookoutRequestMiddleware
         {
             ["http.method"] = req.Method,
             ["http.path"] = path,
-            ["http.status"] = res.StatusCode.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["http.status"] = res.StatusCode.ToString(CultureInfo.InvariantCulture),
+            ["db.count"] = dbCount.ToString(CultureInfo.InvariantCulture),
         };
         if (!string.IsNullOrEmpty(user))
             tags["http.user"] = user!;
+        if (n1Groups.Count > 0)
+        {
+            tags["n1.detected"] = "true";
+            tags["n1.groups"] = n1Groups.Count.ToString(CultureInfo.InvariantCulture);
+        }
 
         var entry = new LookoutEntry(
             Id: Guid.NewGuid(),

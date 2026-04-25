@@ -8,6 +8,7 @@ using Lookout.Core.Diagnostics;
 using Lookout.Core.Schemas;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using N1Scope = Lookout.Core.Diagnostics.N1RequestScope;
 
 namespace Lookout.AspNetCore.Capture;
 
@@ -144,7 +145,11 @@ public sealed class AdoNetDiagnosticSubscriber : IHostedService, IObserver<Diagn
             Tags: tags,
             Content: JsonSerializer.Serialize(content, LookoutJson.Options));
 
-        _recorder.Record(entry);
+        var scope = N1Scope.Current;
+        if (scope is not null)
+            scope.Track(entry, command.CommandText ?? string.Empty);
+        else
+            _recorder.Record(entry);
     }
 
     private IReadOnlyList<EfParameter> BuildParameters(DbCommand command)
