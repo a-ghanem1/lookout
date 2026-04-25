@@ -1,3 +1,4 @@
+using Lookout.AspNetCore.Capture;
 using Lookout.Core;
 using Lookout.Storage.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,7 @@ public static class LookoutServiceCollectionExtensions
 
         services.AddHostedService<LookoutFlusherHostedService>();
         services.AddHostedService<LookoutRetentionHostedService>();
+        services.AddHostedService<AdoNetDiagnosticSubscriber>();
 
         return services;
     }
