@@ -52,6 +52,16 @@ export interface EfEntryContent {
   stack: EfStackFrame[];
 }
 
+/** Raw ADO.NET / Dapper entry content — mirrors EfEntryContent minus dbContextType and the typed commandType. */
+export interface SqlEntryContent {
+  commandText: string;
+  parameters: EfParameter[];
+  durationMs: number;
+  rowsAffected?: number | null;
+  commandType?: string | null;
+  stack: EfStackFrame[];
+}
+
 export interface EntryListResponse {
   entries: EntryDto[];
   nextBefore?: number | null;

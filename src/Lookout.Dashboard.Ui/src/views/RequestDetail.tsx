@@ -5,6 +5,7 @@ import type {
   EfStackFrame,
   EntryDto,
   HttpEntryContent,
+  SqlEntryContent,
 } from '../api/types';
 import { useFetch } from '../api/useFetch';
 import { MethodBadge, StatusBadge } from '../components/Badge';
@@ -46,7 +47,6 @@ export function RequestDetail({ id }: { id: string }) {
 
 export function DetailBody({ entries }: { entries: EntryDto[] }) {
   const http = entries.find((e) => e.type === 'http');
-  const efEntries = entries.filter((e) => e.type === 'ef');
 
   if (!http) {
     return (
@@ -96,7 +96,7 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
           <BodySection title="Response body" body={content.responseBody} />
         </div>
         <div className={styles.sideCol}>
-          <EfSection entries={efEntries} />
+          <DbPanel allEntries={entries} />
         </div>
       </div>
     </div>
@@ -204,12 +204,91 @@ function BodySection({ title, body }: { title: string; body: string | undefined 
   );
 }
 
-function EfSection({ entries }: { entries: EntryDto[] }) {
+// ─── Database panel (EF + SQL entries) ───────────────────────────────────────
+
+function DbPanel({ allEntries }: { allEntries: EntryDto[] }) {
+  const [dismissed, setDismissed] = useState(false);
+  const [highlightN1, setHighlightN1] = useState(false);
+
+  const dbEntries = allEntries
+    .filter((e) => e.type === 'ef' || e.type === 'sql')
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  return (
+    <>
+      {!dismissed && (
+        <N1Banner
+          dbEntries={dbEntries}
+          highlighted={highlightN1}
+          onToggleHighlight={() => setHighlightN1((h) => !h)}
+          onDismiss={() => setDismissed(true)}
+        />
+      )}
+      <DbSection entries={dbEntries} highlightN1={highlightN1} />
+    </>
+  );
+}
+
+function N1Banner({
+  dbEntries,
+  highlighted,
+  onToggleHighlight,
+  onDismiss,
+}: {
+  dbEntries: EntryDto[];
+  highlighted: boolean;
+  onToggleHighlight: () => void;
+  onDismiss: () => void;
+}) {
+  const n1Entries = dbEntries.filter((e) => e.tags['n1.group']);
+  const groupCount = new Set(n1Entries.map((e) => e.tags['n1.group'])).size;
+
+  if (n1Entries.length === 0) return null;
+
+  const groupText = groupCount === 1 ? '1 group' : `${groupCount} groups`;
+
+  return (
+    <div
+      className={`${styles.n1Banner} ${highlighted ? styles.n1BannerActive : ''}`}
+      data-testid="n1-banner"
+      role="alert"
+    >
+      <button
+        type="button"
+        className={styles.n1BannerBody}
+        onClick={onToggleHighlight}
+        aria-pressed={highlighted}
+      >
+        <span className={styles.n1BannerIcon}>⚠</span>
+        <span>
+          N+1 detected — {n1Entries.length}{' '}
+          {n1Entries.length === 1 ? 'query' : 'queries'} share the same SQL shape ({groupText})
+        </span>
+      </button>
+      <button
+        type="button"
+        className={styles.n1BannerDismiss}
+        onClick={onDismiss}
+        aria-label="Dismiss N+1 warning"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function DbSection({
+  entries,
+  highlightN1,
+}: {
+  entries: EntryDto[];
+  highlightN1: boolean;
+}) {
   if (entries.length === 0) {
     return (
-      <details className={styles.section} data-testid="ef-section">
+      <details className={styles.section} data-testid="db-section">
         <summary className={styles.sectionSummary}>
-          EF queries <span className={styles.caption}>0</span>
+          Database queries <span className={styles.caption}>0</span>
         </summary>
         <div className={styles.sectionBody}>
           <div className={styles.caption}>No queries captured for this request.</div>
@@ -219,14 +298,18 @@ function EfSection({ entries }: { entries: EntryDto[] }) {
   }
 
   return (
-    <details className={styles.section} open data-testid="ef-section">
+    <details className={styles.section} open data-testid="db-section">
       <summary className={styles.sectionSummary}>
-        EF queries <span className={styles.caption}>{entries.length}</span>
+        Database queries <span className={styles.caption}>{entries.length}</span>
       </summary>
       <div className={styles.sectionBody}>
         <ul className={styles.efList}>
           {entries.map((e) => (
-            <EfRow key={e.id} entry={e} />
+            <DbRow
+              key={e.id}
+              entry={e}
+              highlight={highlightN1 && !!e.tags['n1.group']}
+            />
           ))}
         </ul>
       </div>
@@ -234,19 +317,31 @@ function EfSection({ entries }: { entries: EntryDto[] }) {
   );
 }
 
-function EfRow({ entry }: { entry: EntryDto }) {
+type DbContent = EfEntryContent | SqlEntryContent;
+
+function DbRow({ entry, highlight }: { entry: EntryDto; highlight: boolean }) {
   const [open, setOpen] = useState(false);
-  const content = entry.content as EfEntryContent;
+  const content = entry.content as DbContent;
   const rows = content.rowsAffected;
+  const source = entry.type === 'ef' ? 'EF' : 'SQL';
 
   return (
-    <li className={styles.efRow} data-testid="ef-query-row">
+    <li
+      className={`${styles.efRow} ${highlight ? styles.n1GroupRow : ''}`}
+      data-testid="ef-query-row"
+    >
       <button
         type="button"
         className={styles.efRowHeader}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
+        <span
+          className={`${styles.dbSourceBadge} ${source === 'EF' ? styles.dbSourceBadgeEf : styles.dbSourceBadgeSql}`}
+          data-testid="db-source-badge"
+        >
+          {source}
+        </span>
         <span className={styles.efPreview}>{sqlPreview(content.commandText)}</span>
         <span className={styles.efMeta}>
           <span className={styles.efDuration}>{formatDuration(content.durationMs)}</span>
@@ -266,7 +361,7 @@ function EfRow({ entry }: { entry: EntryDto }) {
   );
 }
 
-function EfParameters({ parameters }: { parameters: EfEntryContent['parameters'] }) {
+function EfParameters({ parameters }: { parameters: DbContent['parameters'] }) {
   if (!parameters || parameters.length === 0) {
     return (
       <div>

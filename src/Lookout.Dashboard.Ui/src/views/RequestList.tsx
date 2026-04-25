@@ -121,6 +121,7 @@ function RequestTable({ entries, loading }: { entries: EntryDto[]; loading: bool
             <th className={styles.th}>Status</th>
             <th className={styles.th}>Duration</th>
             <th className={styles.th}>User</th>
+            <th className={styles.th}>DB</th>
           </tr>
         </thead>
         <tbody>
@@ -140,6 +141,9 @@ function RequestRow({ entry }: { entry: EntryDto }) {
   const statusStr = entry.tags['http.status'] ?? String(content?.statusCode ?? '');
   const status = Number.parseInt(statusStr, 10);
   const user = entry.tags['http.user'] ?? content?.user ?? '';
+  const dbCountStr = entry.tags['db.count'];
+  const dbCount = dbCountStr !== undefined ? Number.parseInt(dbCountStr, 10) : null;
+  const n1Detected = entry.tags['n1.detected'] === 'true';
 
   const go = () => {
     const target = entry.requestId ?? entry.id;
@@ -169,6 +173,20 @@ function RequestRow({ entry }: { entry: EntryDto }) {
       </td>
       <td className={`${styles.td} ${styles.duration}`}>{formatDuration(entry.durationMs)}</td>
       <td className={`${styles.td} ${styles.mono}`}>{user || '—'}</td>
+      <td className={styles.td}>
+        <div className={styles.dbCell}>
+          {dbCount !== null && dbCount > 0 ? (
+            <span className={styles.dbCountBadge} data-testid="db-count-badge">
+              db: {dbCount}
+            </span>
+          ) : null}
+          {n1Detected ? (
+            <span className={styles.n1Badge} data-testid="n1-badge">
+              N+1
+            </span>
+          ) : null}
+        </div>
+      </td>
     </tr>
   );
 }

@@ -221,6 +221,101 @@
   color: var(--color-fg-muted);
 }
 
+/* ─── N+1 banner ────────────────────────────────────────────────────────── */
+
+.n1Banner {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-special-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-special-bg-subtle);
+  overflow: hidden;
+}
+
+.n1BannerActive {
+  border-color: var(--color-special-fg);
+}
+
+.n1BannerBody {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-special-fg);
+  text-align: left;
+}
+
+.n1BannerBody:hover {
+  background: var(--color-bg-hover);
+}
+
+.n1BannerBody:focus-visible {
+  outline: 2px solid var(--color-accent-ring);
+  outline-offset: -2px;
+}
+
+.n1BannerIcon {
+  flex-shrink: 0;
+}
+
+.n1BannerDismiss {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-base-size);
+  line-height: 1;
+  color: var(--color-special-fg);
+  opacity: 0.7;
+  border-left: 1px solid var(--color-special-border);
+}
+
+.n1BannerDismiss:hover {
+  opacity: 1;
+  background: var(--color-bg-hover);
+}
+
+.n1BannerDismiss:focus-visible {
+  outline: 2px solid var(--color-accent-ring);
+  outline-offset: -2px;
+}
+
+/* ─── DB source badge (EF / SQL) ────────────────────────────────────────── */
+
+.dbSourceBadge {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info-fg);
+  background: var(--color-info-bg-subtle);
+}
+
+.dbSourceBadgeEf {
+  /* EF and SQL share info colors; reserved for future per-type distinction */
+}
+
+.dbSourceBadgeSql {
+  /* Matches EF badge by design; label distinguishes them */
+}
+
+/* ─── N+1 highlighted query row ─────────────────────────────────────────── */
+
+.n1GroupRow {
+  border-color: var(--color-special-border);
+  border-left: 3px solid var(--color-special-fg);
+}
+
 /* ─── EF query list ─────────────────────────────────────────────────────── */
 
 .efList {

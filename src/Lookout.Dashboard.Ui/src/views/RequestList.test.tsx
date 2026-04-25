@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EntryListResponse } from '../api/types';
 import { RequestList } from './RequestList';
 
-function makeResponse(): EntryListResponse {
+function makeResponse(extraTags: Record<string, string> = {}): EntryListResponse {
   return {
     entries: [
       {
@@ -16,6 +16,7 @@ function makeResponse(): EntryListResponse {
           'http.method': 'GET',
           'http.path': '/weatherforecast',
           'http.status': '200',
+          ...extraTags,
         },
         content: {
           method: 'GET',
@@ -96,6 +97,46 @@ describe('RequestList', () => {
       expect(last).toContain('method=POST');
       expect(last).toContain('path=orders');
     });
+  });
+
+  it('shows db.count badge when tag is present', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'db.count': '7' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('db-count-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('db-count-badge')).toHaveTextContent('db: 7');
+  });
+
+  it('shows N+1 badge when n1.detected=true', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify(makeResponse({ 'db.count': '5', 'n1.detected': 'true' })),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('n1-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('n1-badge')).toHaveTextContent('N+1');
+  });
+
+  it('does not show N+1 badge when n1.detected is absent', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('n1-badge')).not.toBeInTheDocument();
   });
 
   it('shows an empty state when no entries come back', async () => {
