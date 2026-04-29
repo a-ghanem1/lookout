@@ -38,6 +38,7 @@ public sealed class N1RequestScope : IDisposable
     private int _exceptionCount;
     private int _logCount;
     private LogLevel? _maxLogLevel;
+    private int _dumpCount;
 
     /// <summary>Total DB entries buffered in this scope.</summary>
     public int DbCount => _pending.Count;
@@ -56,6 +57,9 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Highest log level seen in this scope, or <c>null</c> when no log entries were recorded.</summary>
     public LogLevel? MaxLogLevel => _maxLogLevel;
+
+    /// <summary>Total <see cref="Lookout.Dump"/> entries recorded in this scope.</summary>
+    public int DumpCount => _dumpCount;
 
     private N1RequestScope(EfOptions options)
     {
@@ -89,6 +93,9 @@ public sealed class N1RequestScope : IDisposable
         if (_maxLogLevel is null || level > _maxLogLevel.Value)
             _maxLogLevel = level;
     }
+
+    /// <summary>Increments the dump counter. Called by <see cref="Lookout.Dump"/> after recording.</summary>
+    public void TrackDump() => _dumpCount++;
 
     /// <summary>
     /// Buffers a DB entry for N+1 tracking. Called by the EF interceptor and ADO.NET subscriber

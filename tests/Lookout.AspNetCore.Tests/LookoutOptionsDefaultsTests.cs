@@ -153,4 +153,22 @@ public sealed class LookoutOptionsDefaultsTests
     {
         _sut.Ef.MaxStackFrames.Should().Be(20);
     }
+
+    [Fact]
+    public void Dump_DefaultsToNonNullInstance()
+    {
+        _sut.Dump.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Dump_Capture_DefaultsToTrue()
+    {
+        _sut.Dump.Capture.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Dump_MaxBytes_DefaultsTo65536()
+    {
+        _sut.Dump.MaxBytes.Should().Be(65_536);
+    }
 }
