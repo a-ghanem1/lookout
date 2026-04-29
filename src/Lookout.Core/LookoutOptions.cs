@@ -67,6 +67,9 @@ public sealed class LookoutOptions
     /// <summary>Outbound HttpClient capture configuration.</summary>
     public HttpOptions Http { get; set; } = new();
 
+    /// <summary>Cache capture configuration.</summary>
+    public CacheOptions Cache { get; set; } = new();
+
     /// <summary>
     /// Custom redaction callback applied in the flusher after the default redactors.
     /// Return a (possibly modified) entry; return the input unchanged to pass through.

@@ -1,7 +1,9 @@
 using Lookout.AspNetCore.Capture;
+using Lookout.AspNetCore.Capture.Cache;
 using Lookout.AspNetCore.Capture.Http;
 using Lookout.Core;
 using Lookout.Storage.Sqlite;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
@@ -9,7 +11,14 @@ using Microsoft.Extensions.Options;
 
 namespace Lookout.AspNetCore;
 
-/// <summary>Extension methods for registering Lookout services.</summary>
+/// <summary>
+/// Extension methods for registering Lookout services.
+/// </summary>
+/// <remarks>
+/// Registration order: call <c>AddMemoryCache()</c> (or equivalent) <em>before</em>
+/// <c>AddLookout()</c> for cache capture to take effect. If no <c>IMemoryCache</c>
+/// registration is found, cache capture is skipped silently — no error.
+/// </remarks>
 public static class LookoutServiceCollectionExtensions
 {
     /// <summary>Registers Lookout services with the DI container.</summary>
@@ -49,6 +58,35 @@ public static class LookoutServiceCollectionExtensions
             o.HttpMessageHandlerBuilderActions.Add(b =>
                 b.AdditionalHandlers.Add(b.Services.GetRequiredService<LookoutHttpClientHandler>())));
 
+        // IMemoryCache capture — decorates the last IMemoryCache registration found.
+        // No-op when AddMemoryCache() has not been called before AddLookout().
+        DecorateMemoryCache(services);
+
         return services;
+    }
+
+    private static void DecorateMemoryCache(IServiceCollection services)
+    {
+        var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IMemoryCache));
+        if (descriptor is null) return;
+
+        services.Remove(descriptor);
+        services.Add(ServiceDescriptor.Singleton<IMemoryCache>(sp =>
+        {
+            var inner = (IMemoryCache)CreateFromDescriptor(sp, descriptor);
+            return new LookoutMemoryCacheDecorator(
+                inner,
+                sp.GetRequiredService<ILookoutRecorder>(),
+                sp.GetRequiredService<IOptions<LookoutOptions>>());
+        }));
+    }
+
+    private static object CreateFromDescriptor(IServiceProvider sp, ServiceDescriptor descriptor)
+    {
+        if (descriptor.ImplementationInstance is not null)
+            return descriptor.ImplementationInstance;
+        if (descriptor.ImplementationFactory is not null)
+            return descriptor.ImplementationFactory(sp);
+        return ActivatorUtilities.CreateInstance(sp, descriptor.ImplementationType!);
     }
 }
