@@ -73,6 +73,9 @@ public sealed class LookoutOptions
     /// <summary>Exception capture configuration.</summary>
     public ExceptionOptions Exceptions { get; set; } = new();
 
+    /// <summary>Log capture configuration.</summary>
+    public LoggingOptions Logging { get; set; } = new();
+
     /// <summary>
     /// Custom redaction callback applied in the flusher after the default redactors.
     /// Return a (possibly modified) entry; return the input unchanged to pass through.

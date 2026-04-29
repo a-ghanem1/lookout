@@ -126,7 +126,7 @@ internal sealed class LookoutRequestMiddleware
                     context, path, durationMs, requestId, requestHeaders,
                     requestContentType, requestBody, requestBodyTruncated,
                     responseCapture, n1Scope.DbCount, n1Scope.HttpOutCount, n1Scope.CacheCount,
-                    n1Scope.ExceptionCount, n1Groups);
+                    n1Scope.ExceptionCount, n1Scope.LogCount, n1Scope.MaxLogLevel, n1Groups);
             }
             catch (Exception ex)
             {
@@ -167,6 +167,8 @@ internal sealed class LookoutRequestMiddleware
         int httpOutCount,
         int cacheCount,
         int exceptionCount,
+        int logCount,
+        LogLevel? maxLogLevel,
         IReadOnlyList<N1Group> n1Groups)
     {
         var req = context.Request;
@@ -222,6 +224,12 @@ internal sealed class LookoutRequestMiddleware
         {
             tags["exception.count"] = exceptionCount.ToString(CultureInfo.InvariantCulture);
             tags["exception"] = "true";
+        }
+        if (logCount > 0)
+        {
+            tags["log.count"] = logCount.ToString(CultureInfo.InvariantCulture);
+            if (maxLogLevel.HasValue && maxLogLevel.Value > LogLevel.Information)
+                tags["log.maxLevel"] = maxLogLevel.Value.ToString();
         }
 
         var entry = new LookoutEntry(

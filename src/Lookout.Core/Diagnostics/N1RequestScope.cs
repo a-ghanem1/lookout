@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Lookout.Core.Diagnostics;
 
@@ -35,6 +36,8 @@ public sealed class N1RequestScope : IDisposable
     private int _httpOutCount;
     private int _cacheCount;
     private int _exceptionCount;
+    private int _logCount;
+    private LogLevel? _maxLogLevel;
 
     /// <summary>Total DB entries buffered in this scope.</summary>
     public int DbCount => _pending.Count;
@@ -47,6 +50,12 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Total exception entries recorded in this scope.</summary>
     public int ExceptionCount => _exceptionCount;
+
+    /// <summary>Total log entries recorded in this scope.</summary>
+    public int LogCount => _logCount;
+
+    /// <summary>Highest log level seen in this scope, or <c>null</c> when no log entries were recorded.</summary>
+    public LogLevel? MaxLogLevel => _maxLogLevel;
 
     private N1RequestScope(EfOptions options)
     {
@@ -69,6 +78,17 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Increments the exception counter. Called by exception capture paths after recording.</summary>
     public void TrackException() => _exceptionCount++;
+
+    /// <summary>
+    /// Increments the log counter and updates the high-water-mark level.
+    /// Called by <c>LookoutLogger</c> after recording each log entry.
+    /// </summary>
+    public void TrackLog(LogLevel level)
+    {
+        _logCount++;
+        if (_maxLogLevel is null || level > _maxLogLevel.Value)
+            _maxLogLevel = level;
+    }
 
     /// <summary>
     /// Buffers a DB entry for N+1 tracking. Called by the EF interceptor and ADO.NET subscriber
