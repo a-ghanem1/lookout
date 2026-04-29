@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { EntryDto } from '../api/types';
+import type { CacheEntryContent, EntryDto, OutboundHttpEntryContent } from '../api/types';
 import { DetailBody } from './RequestDetail';
 
 const httpEntry: EntryDto = {
@@ -239,5 +239,287 @@ describe('RequestDetail — N+1 banner', () => {
     expect(bodyBtn).toHaveAttribute('aria-pressed', 'true');
     await user.click(bodyBtn);
     expect(bodyBtn).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+// ── Outbound HTTP section ─────────────────────────────────────────────────────
+
+function httpOutEntry(
+  id: string,
+  overrides: Partial<OutboundHttpEntryContent> = {},
+  tagOverrides: Record<string, string> = {},
+): EntryDto {
+  const content: OutboundHttpEntryContent = {
+    method: 'GET',
+    url: 'https://api.example.com/v1/data',
+    statusCode: 200,
+    durationMs: 45.6,
+    requestHeaders: { Accept: 'application/json' },
+    responseHeaders: { 'Content-Type': 'application/json' },
+    requestBody: null,
+    responseBody: null,
+    errorType: null,
+    errorMessage: null,
+    ...overrides,
+  };
+  return {
+    id,
+    type: 'http-out',
+    timestamp: 1_700_000_000_300,
+    requestId: 'req-42',
+    durationMs: 45.6,
+    tags: {
+      'http.method': content.method,
+      'http.out': 'true',
+      'http.url.host': 'api.example.com',
+      'http.url.path': '/v1/data',
+      'http.status': String(content.statusCode ?? ''),
+      ...tagOverrides,
+    },
+    content,
+  };
+}
+
+describe('RequestDetail — Outbound HTTP section', () => {
+  it('renders section with rows for http-out entries', () => {
+    render(<DetailBody entries={[httpEntry, httpOutEntry('out-1')]} />);
+    expect(screen.getByTestId('http-out-section')).toBeInTheDocument();
+    expect(screen.getAllByTestId('http-out-row')).toHaveLength(1);
+  });
+
+  it('does not render section when no http-out entries', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    expect(screen.queryByTestId('http-out-section')).not.toBeInTheDocument();
+  });
+
+  it('renders HTTP source badge on each row', () => {
+    render(<DetailBody entries={[httpEntry, httpOutEntry('out-1')]} />);
+    expect(screen.getByTestId('http-source-badge')).toHaveTextContent('HTTP');
+  });
+
+  it('shows method and status on each row', () => {
+    render(<DetailBody entries={[httpEntry, httpOutEntry('out-1')]} />);
+    const row = screen.getByTestId('http-out-row');
+    expect(row).toHaveTextContent('GET');
+    expect(row).toHaveTextContent('200');
+  });
+
+  it('toggles expanded body when row header is clicked', async () => {
+    const user = userEvent.setup();
+    render(<DetailBody entries={[httpEntry, httpOutEntry('out-1')]} />);
+    expect(screen.queryByTestId('http-out-row-body')).not.toBeInTheDocument();
+    const btn = screen.getByTestId('http-out-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.getByTestId('http-out-row-body')).toBeInTheDocument();
+    expect(screen.getByTestId('http-out-row-body')).toHaveTextContent('https://api.example.com/v1/data');
+  });
+
+  it('shows ERR badge when http.error tag is present', () => {
+    render(
+      <DetailBody
+        entries={[
+          httpEntry,
+          httpOutEntry(
+            'out-err',
+            { statusCode: null, errorType: 'System.Net.Http.HttpRequestException', errorMessage: 'timeout' },
+            { 'http.error': 'System.Net.Http.HttpRequestException' },
+          ),
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('http-out-error-badge')).toBeInTheDocument();
+  });
+
+  it('shows error details in expanded row', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[
+          httpEntry,
+          httpOutEntry(
+            'out-err',
+            { statusCode: null, errorType: 'System.Net.Http.HttpRequestException', errorMessage: 'connection refused' },
+            { 'http.error': 'System.Net.Http.HttpRequestException' },
+          ),
+        ]}
+      />,
+    );
+    const btn = screen.getByTestId('http-out-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.getByTestId('http-out-row-body')).toHaveTextContent('connection refused');
+  });
+
+  it('renders multiple rows sorted by timestamp', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      { ...httpOutEntry('out-late'), timestamp: 1_700_000_003_000 },
+      { ...httpOutEntry('out-early'), timestamp: 1_700_000_001_000 },
+    ];
+    render(<DetailBody entries={entries} />);
+    const rows = screen.getAllByTestId('http-out-row');
+    expect(rows).toHaveLength(2);
+  });
+});
+
+// ── Cache section ─────────────────────────────────────────────────────────────
+
+function cacheEntry(
+  id: string,
+  operation: string,
+  hit: boolean | null = null,
+  system: 'memory' | 'distributed' = 'memory',
+): EntryDto {
+  const content: CacheEntryContent = {
+    operation,
+    key: `cache-key-${id}`,
+    hit: operation === 'Get' ? hit : null,
+    durationMs: 0.12,
+    valueType: system === 'memory' ? 'System.String' : null,
+    valueBytes: system === 'distributed' ? 42 : null,
+  };
+  const tags: Record<string, string> = {
+    'cache.system': system === 'memory' ? 'memory' : 'distributed',
+    'cache.key': content.key,
+  };
+  if (operation === 'Get' && hit !== null) tags['cache.hit'] = hit ? 'true' : 'false';
+  if (system !== 'memory') tags['cache.provider'] = 'MemoryDistributedCache';
+
+  return {
+    id,
+    type: 'cache',
+    timestamp: 1_700_000_000_400,
+    requestId: 'req-42',
+    durationMs: 0.12,
+    tags,
+    content,
+  };
+}
+
+describe('RequestDetail — Cache section', () => {
+  it('renders section with rows for cache entries', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Get', false)]} />);
+    expect(screen.getByTestId('cache-section')).toBeInTheDocument();
+    expect(screen.getAllByTestId('cache-row')).toHaveLength(1);
+  });
+
+  it('does not render section when no cache entries', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    expect(screen.queryByTestId('cache-section')).not.toBeInTheDocument();
+  });
+
+  it('renders MEM source badge for memory cache entries', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Get', true, 'memory')]} />);
+    expect(screen.getByTestId('cache-source-badge')).toHaveTextContent('MEM');
+  });
+
+  it('renders DIST source badge for distributed cache entries', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Get', true, 'distributed')]} />);
+    expect(screen.getByTestId('cache-source-badge')).toHaveTextContent('DIST');
+  });
+
+  it('renders operation badge', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Set')]} />);
+    expect(screen.getByTestId('cache-operation-badge')).toHaveTextContent('Set');
+  });
+
+  it('renders hit dot for a Get hit', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Get', true)]} />);
+    expect(screen.getByTestId('cache-hit-dot')).toBeInTheDocument();
+    expect(screen.queryByTestId('cache-miss-dot')).not.toBeInTheDocument();
+  });
+
+  it('renders miss dot for a Get miss', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Get', false)]} />);
+    expect(screen.getByTestId('cache-miss-dot')).toBeInTheDocument();
+    expect(screen.queryByTestId('cache-hit-dot')).not.toBeInTheDocument();
+  });
+
+  it('renders no hit/miss dot for non-Get operations', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Set')]} />);
+    expect(screen.queryByTestId('cache-hit-dot')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cache-miss-dot')).not.toBeInTheDocument();
+  });
+
+  it('shows hit ratio chip when Get entries exist', () => {
+    render(
+      <DetailBody
+        entries={[
+          httpEntry,
+          cacheEntry('c1', 'Get', true),
+          cacheEntry('c2', 'Get', true),
+          cacheEntry('c3', 'Get', true),
+          cacheEntry('c4', 'Get', true),
+          cacheEntry('c5', 'Get', false),
+        ]}
+      />,
+    );
+    const chip = screen.getByTestId('hit-ratio-chip');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveTextContent('H 4 / M 1 (80%)');
+  });
+
+  it('does not show hit ratio chip when no Get entries', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Set')]} />);
+    expect(screen.queryByTestId('hit-ratio-chip')).not.toBeInTheDocument();
+  });
+
+  it('toggles expanded body on click and shows key', async () => {
+    const user = userEvent.setup();
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Get', true)]} />);
+    expect(screen.queryByTestId('cache-row-body')).not.toBeInTheDocument();
+    const btn = screen.getByTestId('cache-row').querySelector('button')!;
+    await user.click(btn);
+    const body = screen.getByTestId('cache-row-body');
+    expect(body).toBeInTheDocument();
+    expect(body).toHaveTextContent('cache-key-c1');
+  });
+});
+
+// ── Mixed entries ─────────────────────────────────────────────────────────────
+
+describe('RequestDetail — mixed DB + HTTP-out + cache entries', () => {
+  it('renders all three sections when all entry types present', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      efEntry('ef-1', 'SELECT 1'),
+      httpOutEntry('out-1'),
+      cacheEntry('c1', 'Get', true),
+    ];
+    render(<DetailBody entries={entries} />);
+    expect(screen.getByTestId('db-section')).toBeInTheDocument();
+    expect(screen.getByTestId('http-out-section')).toBeInTheDocument();
+    expect(screen.getByTestId('cache-section')).toBeInTheDocument();
+  });
+
+  it('shows side panel when only http-out entries present (no db)', () => {
+    render(<DetailBody entries={[httpEntry, httpOutEntry('out-1')]} />);
+    expect(screen.queryByTestId('db-section')).not.toBeInTheDocument();
+    expect(screen.getByTestId('http-out-section')).toBeInTheDocument();
+  });
+
+  it('shows side panel when only cache entries present (no db or http-out)', () => {
+    render(<DetailBody entries={[httpEntry, cacheEntry('c1', 'Set')]} />);
+    expect(screen.queryByTestId('db-section')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('http-out-section')).not.toBeInTheDocument();
+    expect(screen.getByTestId('cache-section')).toBeInTheDocument();
+  });
+
+  it('EF, SQL, HTTP, MEM, DIST source badges all render with correct labels', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      efEntry('ef-1', 'SELECT 1'),
+      sqlEntry('sql-1', 'SELECT 2'),
+      httpOutEntry('out-1'),
+      cacheEntry('c-mem', 'Get', true, 'memory'),
+      cacheEntry('c-dist', 'Get', false, 'distributed'),
+    ];
+    render(<DetailBody entries={entries} />);
+    const dbBadges = screen.getAllByTestId('db-source-badge').map((b) => b.textContent);
+    expect(dbBadges).toContain('EF');
+    expect(dbBadges).toContain('SQL');
+    expect(screen.getByTestId('http-source-badge')).toHaveTextContent('HTTP');
+    const cacheBadges = screen.getAllByTestId('cache-source-badge').map((b) => b.textContent);
+    expect(cacheBadges).toContain('MEM');
+    expect(cacheBadges).toContain('DIST');
   });
 });

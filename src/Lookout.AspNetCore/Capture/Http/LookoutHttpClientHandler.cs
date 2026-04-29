@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Lookout.Core;
+using Lookout.Core.Diagnostics;
 using Lookout.Core.Schemas;
 using Microsoft.Extensions.Options;
 
@@ -137,6 +138,7 @@ public sealed class LookoutHttpClientHandler : DelegatingHandler
             Content: JsonSerializer.Serialize(content, LookoutJson.Options));
 
         _recorder.Record(entry);
+        N1RequestScope.Current?.TrackHttpOut();
     }
 
     private static string RedactUrl(Uri? uri, HashSet<string> sensitiveParams)

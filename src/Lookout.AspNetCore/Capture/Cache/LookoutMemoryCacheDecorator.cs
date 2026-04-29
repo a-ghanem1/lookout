@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Lookout.Core;
+using Lookout.Core.Diagnostics;
 using Lookout.Core.Schemas;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -108,6 +109,7 @@ public sealed class LookoutMemoryCacheDecorator : IMemoryCache
             Content: JsonSerializer.Serialize(content, LookoutJson.Options));
 
         _recorder.Record(entry);
+        N1RequestScope.Current?.TrackCache();
     }
 
     private static string RedactKey(object key, IList<Regex> patterns)

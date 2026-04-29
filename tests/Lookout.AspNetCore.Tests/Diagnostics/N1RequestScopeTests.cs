@@ -269,6 +269,58 @@ public sealed class N1RequestScopeTests
         recorder.Entries.Should().OnlyContain(e => e.Tags.ContainsKey("n1.group"));
     }
 
+    // ── HttpOutCount / CacheCount ─────────────────────────────────────────────
+
+    [Fact]
+    public void HttpOutCount_StartsAtZero()
+    {
+        using var scope = N1RequestScope.Begin(new EfOptions());
+        scope.HttpOutCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void TrackHttpOut_IncrementsHttpOutCount()
+    {
+        using var scope = N1RequestScope.Begin(new EfOptions());
+
+        scope.TrackHttpOut();
+        scope.TrackHttpOut();
+        scope.TrackHttpOut();
+
+        scope.HttpOutCount.Should().Be(3);
+    }
+
+    [Fact]
+    public void CacheCount_StartsAtZero()
+    {
+        using var scope = N1RequestScope.Begin(new EfOptions());
+        scope.CacheCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void TrackCache_IncrementsCacheCount()
+    {
+        using var scope = N1RequestScope.Begin(new EfOptions());
+
+        scope.TrackCache();
+        scope.TrackCache();
+
+        scope.CacheCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void HttpOutCountAndCacheCount_AreIndependent()
+    {
+        using var scope = N1RequestScope.Begin(new EfOptions());
+
+        scope.TrackHttpOut();
+        scope.TrackCache();
+        scope.TrackCache();
+
+        scope.HttpOutCount.Should().Be(1);
+        scope.CacheCount.Should().Be(2);
+    }
+
     // ── Out-of-request (no scope) ─────────────────────────────────────────────
 
     [Fact]

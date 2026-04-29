@@ -462,6 +462,22 @@ public sealed class LookoutRequestMiddlewareTests : IDisposable
         entry.Content.Should().NotContain("session=abc123");
     }
 
+    [Fact]
+    public async Task HttpOutCountAndCacheCount_TagsArePresent_WithZeroForPlainRequest()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        (await app.GetTestClient().GetAsync("/ping")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        entry.Tags.Should().ContainKey("http.out.count").WhoseValue.Should().Be("0");
+        entry.Tags.Should().ContainKey("cache.count").WhoseValue.Should().Be("0");
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private string TempDbPath()

@@ -155,4 +155,80 @@ describe('RequestList', () => {
       expect(screen.getByTestId('empty-state')).toBeInTheDocument();
     });
   });
+
+  it('shows http-out count badge when http.out.count tag is present and > 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'http.out.count': '3' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('http-out-count-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('http-out-count-badge')).toHaveTextContent('http: 3');
+  });
+
+  it('does not show http-out count badge when tag is 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'http.out.count': '0' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('http-out-count-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows cache count badge when cache.count tag is present and > 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'cache.count': '5' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('cache-count-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('cache-count-badge')).toHaveTextContent('cache: 5');
+  });
+
+  it('does not show cache count badge when tag is absent', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('cache-count-badge')).not.toBeInTheDocument();
+  });
+
+  it('renders all badges together when all tags are present', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify(
+            makeResponse({ 'db.count': '2', 'n1.detected': 'true', 'http.out.count': '1', 'cache.count': '4' }),
+          ),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('db-count-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('n1-badge')).toBeInTheDocument();
+    expect(screen.getByTestId('http-out-count-badge')).toHaveTextContent('http: 1');
+    expect(screen.getByTestId('cache-count-badge')).toHaveTextContent('cache: 4');
+  });
 });

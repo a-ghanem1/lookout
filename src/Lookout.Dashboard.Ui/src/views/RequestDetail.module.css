@@ -436,3 +436,87 @@
 .efStackLocation {
   color: var(--color-fg-muted);
 }
+
+/* ─── HTTP source badge ─────────────────────────────────────────────────── */
+
+.httpSourceBadge {
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-fg);
+  background: var(--color-accent-bg-subtle);
+}
+
+/* ─── Error badge (outbound HTTP failure) ───────────────────────────────── */
+
+.errorBadge {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+}
+
+/* ─── Cache source badges ───────────────────────────────────────────────── */
+
+.cacheSourceBadgeMem {
+  border-color: var(--color-success-border);
+  color: var(--color-success-fg);
+  background: var(--color-success-bg-subtle);
+}
+
+.cacheSourceBadgeDist {
+  border-color: var(--color-warn-border);
+  color: var(--color-warn-fg);
+  background: var(--color-warn-bg-subtle);
+}
+
+/* ─── Cache operation badge ─────────────────────────────────────────────── */
+
+.cacheOperationBadge {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+}
+
+/* ─── Cache hit / miss dots ─────────────────────────────────────────────── */
+
+.hitDot,
+.missDot {
+  display: inline-block;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hitDot {
+  background: var(--color-success-fg);
+}
+
+.missDot {
+  background: var(--color-fg-muted);
+}
+
+/* ─── Hit ratio chip ────────────────────────────────────────────────────── */
+
+.hitRatioChip {
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-special-border);
+  color: var(--color-special-fg);
+  background: var(--color-special-bg-subtle);
+}

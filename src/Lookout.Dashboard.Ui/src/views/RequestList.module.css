@@ -179,3 +179,31 @@
   background: var(--color-warn-bg-subtle);
   white-space: nowrap;
 }
+
+.httpOutCountBadge {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent-fg);
+  background: var(--color-accent-bg-subtle);
+  white-space: nowrap;
+}
+
+.cacheCountBadge {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success-fg);
+  background: var(--color-success-bg-subtle);
+  white-space: nowrap;
+}

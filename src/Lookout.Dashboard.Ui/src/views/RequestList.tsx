@@ -144,6 +144,10 @@ function RequestRow({ entry }: { entry: EntryDto }) {
   const dbCountStr = entry.tags['db.count'];
   const dbCount = dbCountStr !== undefined ? Number.parseInt(dbCountStr, 10) : null;
   const n1Detected = entry.tags['n1.detected'] === 'true';
+  const httpOutCountStr = entry.tags['http.out.count'];
+  const httpOutCount = httpOutCountStr !== undefined ? Number.parseInt(httpOutCountStr, 10) : null;
+  const cacheCountStr = entry.tags['cache.count'];
+  const cacheCount = cacheCountStr !== undefined ? Number.parseInt(cacheCountStr, 10) : null;
 
   const go = () => {
     const target = entry.requestId ?? entry.id;
@@ -183,6 +187,16 @@ function RequestRow({ entry }: { entry: EntryDto }) {
           {n1Detected ? (
             <span className={styles.n1Badge} data-testid="n1-badge">
               N+1
+            </span>
+          ) : null}
+          {httpOutCount !== null && httpOutCount > 0 ? (
+            <span className={styles.httpOutCountBadge} data-testid="http-out-count-badge">
+              http: {httpOutCount}
+            </span>
+          ) : null}
+          {cacheCount !== null && cacheCount > 0 ? (
+            <span className={styles.cacheCountBadge} data-testid="cache-count-badge">
+              cache: {cacheCount}
             </span>
           ) : null}
         </div>
