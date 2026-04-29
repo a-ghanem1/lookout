@@ -125,7 +125,7 @@ internal sealed class LookoutRequestMiddleware
                 Capture(
                     context, path, durationMs, requestId, requestHeaders,
                     requestContentType, requestBody, requestBodyTruncated,
-                    responseCapture, n1Scope.DbCount, n1Groups);
+                    responseCapture, n1Scope.DbCount, n1Scope.HttpOutCount, n1Scope.CacheCount, n1Groups);
             }
             catch (Exception ex)
             {
@@ -163,6 +163,8 @@ internal sealed class LookoutRequestMiddleware
         bool requestBodyTruncated,
         CapturingResponseStream? responseCapture,
         int dbCount,
+        int httpOutCount,
+        int cacheCount,
         IReadOnlyList<N1Group> n1Groups)
     {
         var req = context.Request;
@@ -204,6 +206,8 @@ internal sealed class LookoutRequestMiddleware
             ["http.path"] = path,
             ["http.status"] = res.StatusCode.ToString(CultureInfo.InvariantCulture),
             ["db.count"] = dbCount.ToString(CultureInfo.InvariantCulture),
+            ["http.out.count"] = httpOutCount.ToString(CultureInfo.InvariantCulture),
+            ["cache.count"] = cacheCount.ToString(CultureInfo.InvariantCulture),
         };
         if (!string.IsNullOrEmpty(user))
             tags["http.user"] = user!;

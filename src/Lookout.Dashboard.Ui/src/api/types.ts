@@ -62,6 +62,28 @@ export interface SqlEntryContent {
   stack: EfStackFrame[];
 }
 
+export interface OutboundHttpEntryContent {
+  method: string;
+  url: string;
+  statusCode?: number | null;
+  durationMs: number;
+  requestHeaders: Record<string, string>;
+  responseHeaders: Record<string, string>;
+  requestBody?: string | null;
+  responseBody?: string | null;
+  errorType?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface CacheEntryContent {
+  operation: string;
+  key: string;
+  hit?: boolean | null;
+  durationMs: number;
+  valueType?: string | null;
+  valueBytes?: number | null;
+}
+
 export interface EntryListResponse {
   entries: EntryDto[];
   nextBefore?: number | null;

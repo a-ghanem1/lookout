@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { getRequestEntries } from '../api/client';
 import type {
+  CacheEntryContent,
   EfEntryContent,
   EfStackFrame,
   EntryDto,
   HttpEntryContent,
+  OutboundHttpEntryContent,
   SqlEntryContent,
 } from '../api/types';
 import { useFetch } from '../api/useFetch';
@@ -64,6 +66,13 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
   const content = http.content as HttpEntryContent;
   const status = content?.statusCode ?? 0;
   const hasDbEntries = entries.some((e) => e.type === 'ef' || e.type === 'sql');
+  const httpOutEntries = entries
+    .filter((e) => e.type === 'http-out')
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const cacheEntries = entries
+    .filter((e) => e.type === 'cache')
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const hasSidePanel = hasDbEntries || httpOutEntries.length > 0 || cacheEntries.length > 0;
 
   return (
     <div className={styles.root} data-testid="request-detail">
@@ -90,15 +99,17 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
       </section>
 
       <div className={styles.detailGrid}>
-        <div className={`${styles.httpCol} ${!hasDbEntries ? styles.httpColFull : ''}`}>
+        <div className={`${styles.httpCol} ${!hasSidePanel ? styles.httpColFull : ''}`}>
           <HeadersSection title="Request headers" headers={content.requestHeaders} />
           <BodySection title="Request body" body={content.requestBody} />
           <HeadersSection title="Response headers" headers={content.responseHeaders} />
           <BodySection title="Response body" body={content.responseBody} />
         </div>
-        {hasDbEntries && (
+        {hasSidePanel && (
           <div className={styles.sideCol}>
-            <DbPanel allEntries={entries} />
+            {hasDbEntries && <DbPanel allEntries={entries} />}
+            <OutboundHttpSection entries={httpOutEntries} />
+            <CacheSection entries={cacheEntries} />
           </div>
         )}
       </div>
@@ -418,5 +429,197 @@ function EfStack({ stack }: { stack: EfStackFrame[] }) {
         ))}
       </ol>
     </div>
+  );
+}
+
+// ─── Outbound HTTP section ────────────────────────────────────────────────────
+
+function OutboundHttpSection({ entries }: { entries: EntryDto[] }) {
+  if (entries.length === 0) return null;
+
+  return (
+    <details className={styles.section} open data-testid="http-out-section">
+      <summary className={styles.sectionSummary}>
+        Outbound HTTP <span className={styles.caption}>{entries.length}</span>
+      </summary>
+      <div className={styles.sectionBody}>
+        <ul className={styles.efList}>
+          {entries.map((e) => (
+            <OutboundHttpRow key={e.id} entry={e} />
+          ))}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
+function OutboundHttpRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as OutboundHttpEntryContent;
+  const host = entry.tags['http.url.host'] ?? '';
+  const urlPath = entry.tags['http.url.path'] ?? '';
+  const statusStr = entry.tags['http.status'];
+  const status = statusStr ? Number.parseInt(statusStr, 10) : null;
+  const hasError = !!entry.tags['http.error'];
+
+  return (
+    <li className={styles.efRow} data-testid="http-out-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span
+          className={`${styles.dbSourceBadge} ${styles.httpSourceBadge}`}
+          data-testid="http-source-badge"
+        >
+          HTTP
+        </span>
+        <MethodBadge method={content?.method ?? '—'} />
+        <span className={styles.efPreview}>
+          {host}
+          {urlPath}
+        </span>
+        <span className={styles.efMeta}>
+          {status !== null && Number.isFinite(status) ? <StatusBadge status={status} /> : null}
+          {hasError ? (
+            <span className={styles.errorBadge} data-testid="http-out-error-badge">
+              ERR
+            </span>
+          ) : null}
+          <span className={styles.efDuration}>{formatDuration(entry.durationMs)}</span>
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="http-out-row-body">
+          <div>
+            <div className={styles.metaLabel}>URL</div>
+            <pre className={styles.code}>{content?.url}</pre>
+          </div>
+          {content?.errorType ? (
+            <div>
+              <div className={styles.metaLabel}>Error</div>
+              <div className={styles.caption}>
+                {content.errorType}: {content.errorMessage}
+              </div>
+            </div>
+          ) : null}
+          <HeadersSection title="Request headers" headers={content?.requestHeaders ?? {}} />
+          <HeadersSection title="Response headers" headers={content?.responseHeaders ?? {}} />
+          {content?.requestBody ? (
+            <BodySection title="Request body" body={content.requestBody} />
+          ) : null}
+          {content?.responseBody ? (
+            <BodySection title="Response body" body={content.responseBody} />
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+// ─── Cache section ────────────────────────────────────────────────────────────
+
+function CacheSection({ entries }: { entries: EntryDto[] }) {
+  if (entries.length === 0) return null;
+
+  const gets = entries.filter((e) => (e.content as CacheEntryContent)?.operation === 'Get');
+  const hits = gets.filter((e) => (e.content as CacheEntryContent)?.hit === true).length;
+  const misses = gets.filter((e) => (e.content as CacheEntryContent)?.hit === false).length;
+  const total = hits + misses;
+  const hitPct = total > 0 ? Math.round((hits / total) * 100) : null;
+
+  return (
+    <details className={styles.section} open data-testid="cache-section">
+      <summary className={styles.sectionSummary}>
+        <span>
+          Cache <span className={styles.caption}>{entries.length}</span>
+        </span>
+        {hitPct !== null ? (
+          <span className={styles.hitRatioChip} data-testid="hit-ratio-chip">
+            H {hits} / M {misses} ({hitPct}%)
+          </span>
+        ) : null}
+      </summary>
+      <div className={styles.sectionBody}>
+        <ul className={styles.efList}>
+          {entries.map((e) => (
+            <CacheRow key={e.id} entry={e} />
+          ))}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
+function CacheRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as CacheEntryContent;
+  const system = entry.tags['cache.system'];
+  const hitTag = entry.tags['cache.hit'];
+  const isGet = content?.operation === 'Get';
+  const sourceLabel = system === 'memory' ? 'MEM' : 'DIST';
+
+  return (
+    <li className={styles.efRow} data-testid="cache-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span
+          className={`${styles.dbSourceBadge} ${system === 'memory' ? styles.cacheSourceBadgeMem : styles.cacheSourceBadgeDist}`}
+          data-testid="cache-source-badge"
+        >
+          {sourceLabel}
+        </span>
+        <span className={styles.cacheOperationBadge} data-testid="cache-operation-badge">
+          {content?.operation ?? '—'}
+        </span>
+        <span className={styles.efPreview}>{entry.tags['cache.key'] ?? content?.key ?? '—'}</span>
+        <span className={styles.efMeta}>
+          {isGet && hitTag !== undefined ? (
+            <span
+              className={hitTag === 'true' ? styles.hitDot : styles.missDot}
+              data-testid={hitTag === 'true' ? 'cache-hit-dot' : 'cache-miss-dot'}
+              title={hitTag === 'true' ? 'Cache hit' : 'Cache miss'}
+            />
+          ) : null}
+          <span className={styles.efDuration}>{formatDuration(entry.durationMs)}</span>
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="cache-row-body">
+          <div>
+            <div className={styles.metaLabel}>Key</div>
+            <pre className={styles.code}>{content?.key}</pre>
+          </div>
+          {content?.valueType ? (
+            <div>
+              <div className={styles.metaLabel}>Value type</div>
+              <div className={styles.metaValue}>{content.valueType}</div>
+            </div>
+          ) : null}
+          {content?.valueBytes != null ? (
+            <div>
+              <div className={styles.metaLabel}>Value bytes</div>
+              <div className={styles.metaValue}>{content.valueBytes}</div>
+            </div>
+          ) : null}
+          <div>
+            <div className={styles.metaLabel}>System</div>
+            <div className={styles.metaValue}>{system ?? '—'}</div>
+          </div>
+          {entry.tags['cache.provider'] ? (
+            <div>
+              <div className={styles.metaLabel}>Provider</div>
+              <div className={styles.metaValue}>{entry.tags['cache.provider']}</div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
