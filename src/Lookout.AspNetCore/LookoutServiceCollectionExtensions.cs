@@ -3,6 +3,7 @@ using Lookout.AspNetCore.Capture.Cache;
 using Lookout.AspNetCore.Capture.Http;
 using Lookout.Core;
 using Lookout.Storage.Sqlite;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -62,6 +63,10 @@ public static class LookoutServiceCollectionExtensions
         // No-op when AddMemoryCache() has not been called before AddLookout().
         DecorateMemoryCache(services);
 
+        // IDistributedCache capture — decorates the last IDistributedCache registration found.
+        // No-op when AddDistributedMemoryCache() (or equivalent) has not been called before AddLookout().
+        DecorateDistributedCache(services);
+
         return services;
     }
 
@@ -75,6 +80,22 @@ public static class LookoutServiceCollectionExtensions
         {
             var inner = (IMemoryCache)CreateFromDescriptor(sp, descriptor);
             return new LookoutMemoryCacheDecorator(
+                inner,
+                sp.GetRequiredService<ILookoutRecorder>(),
+                sp.GetRequiredService<IOptions<LookoutOptions>>());
+        }));
+    }
+
+    private static void DecorateDistributedCache(IServiceCollection services)
+    {
+        var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IDistributedCache));
+        if (descriptor is null) return;
+
+        services.Remove(descriptor);
+        services.Add(ServiceDescriptor.Singleton<IDistributedCache>(sp =>
+        {
+            var inner = (IDistributedCache)CreateFromDescriptor(sp, descriptor);
+            return new LookoutDistributedCacheDecorator(
                 inner,
                 sp.GetRequiredService<ILookoutRecorder>(),
                 sp.GetRequiredService<IOptions<LookoutOptions>>());
