@@ -1,8 +1,10 @@
 using Lookout.AspNetCore.Capture;
+using Lookout.AspNetCore.Capture.Http;
 using Lookout.Core;
 using Lookout.Storage.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 
 namespace Lookout.AspNetCore;
@@ -38,6 +40,14 @@ public static class LookoutServiceCollectionExtensions
         services.AddHostedService<LookoutFlusherHostedService>();
         services.AddHostedService<LookoutRetentionHostedService>();
         services.AddHostedService<AdoNetDiagnosticSubscriber>();
+
+        // Outbound HttpClient capture — auto-wired into every named/typed client.
+        // Consumers must call AddHttpClient() before or after AddLookout(); order does not matter
+        // because ConfigureAll defers until the handler chain is first built.
+        services.AddTransient<LookoutHttpClientHandler>();
+        services.ConfigureAll<HttpClientFactoryOptions>(o =>
+            o.HttpMessageHandlerBuilderActions.Add(b =>
+                b.AdditionalHandlers.Add(b.Services.GetRequiredService<LookoutHttpClientHandler>())));
 
         return services;
     }

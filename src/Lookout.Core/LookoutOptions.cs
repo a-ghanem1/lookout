@@ -64,6 +64,9 @@ public sealed class LookoutOptions
     /// <summary>EF Core capture configuration.</summary>
     public EfOptions Ef { get; set; } = new();
 
+    /// <summary>Outbound HttpClient capture configuration.</summary>
+    public HttpOptions Http { get; set; } = new();
+
     /// <summary>
     /// Custom redaction callback applied in the flusher after the default redactors.
     /// Return a (possibly modified) entry; return the input unchanged to pass through.
