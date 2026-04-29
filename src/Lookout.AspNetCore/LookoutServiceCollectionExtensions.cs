@@ -1,5 +1,6 @@
 using Lookout.AspNetCore.Capture;
 using Lookout.AspNetCore.Capture.Cache;
+using Lookout.AspNetCore.Capture.Exceptions;
 using Lookout.AspNetCore.Capture.Http;
 using Lookout.Core;
 using Lookout.Storage.Sqlite;
@@ -50,6 +51,13 @@ public static class LookoutServiceCollectionExtensions
         services.AddHostedService<LookoutFlusherHostedService>();
         services.AddHostedService<LookoutRetentionHostedService>();
         services.AddHostedService<AdoNetDiagnosticSubscriber>();
+
+        // Exception capture — IExceptionHandler (requires UseExceptionHandler() in pipeline) +
+        // DiagnosticListener fallback for exceptions that bypass UseExceptionHandler().
+        // Ours is registered first so it runs before consumer-registered handlers; it always
+        // returns false to keep the host's own error handling intact.
+        services.AddSingleton<Microsoft.AspNetCore.Diagnostics.IExceptionHandler, LookoutExceptionHandler>();
+        services.AddHostedService<UnhandledExceptionDiagnosticSubscriber>();
 
         // Outbound HttpClient capture — auto-wired into every named/typed client.
         // Consumers must call AddHttpClient() before or after AddLookout(); order does not matter

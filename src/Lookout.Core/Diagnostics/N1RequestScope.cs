@@ -34,6 +34,7 @@ public sealed class N1RequestScope : IDisposable
     private readonly List<(LookoutEntry Entry, string ShapeKey)> _pending = new();
     private int _httpOutCount;
     private int _cacheCount;
+    private int _exceptionCount;
 
     /// <summary>Total DB entries buffered in this scope.</summary>
     public int DbCount => _pending.Count;
@@ -43,6 +44,9 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Total cache entries recorded in this scope.</summary>
     public int CacheCount => _cacheCount;
+
+    /// <summary>Total exception entries recorded in this scope.</summary>
+    public int ExceptionCount => _exceptionCount;
 
     private N1RequestScope(EfOptions options)
     {
@@ -62,6 +66,9 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Increments the cache operation counter. Called by cache decorators after recording.</summary>
     public void TrackCache() => _cacheCount++;
+
+    /// <summary>Increments the exception counter. Called by exception capture paths after recording.</summary>
+    public void TrackException() => _exceptionCount++;
 
     /// <summary>
     /// Buffers a DB entry for N+1 tracking. Called by the EF interceptor and ADO.NET subscriber

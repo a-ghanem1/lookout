@@ -35,6 +35,40 @@ public static class StackTraceCapture
     };
 
     /// <summary>
+    /// Returns up to <paramref name="maxFrames"/> filtered user-code frames extracted from
+    /// <paramref name="exception"/>'s stack trace. Framework and Lookout frames are stripped.
+    /// </summary>
+    public static IReadOnlyList<EfStackFrame> CaptureFromException(Exception exception, int maxFrames)
+    {
+        if (maxFrames <= 0) return [];
+
+        var trace = new StackTrace(exception, fNeedFileInfo: true);
+        var frames = trace.GetFrames();
+        if (frames == null || frames.Length == 0) return [];
+
+        var result = new List<EfStackFrame>(Math.Min(maxFrames, frames.Length));
+        foreach (var frame in frames)
+        {
+            if (result.Count >= maxFrames) break;
+
+            var method = frame.GetMethod();
+            if (method == null) continue;
+            if (IsNoiseFrame(method)) continue;
+
+            var name = _nameCache.GetOrAdd(method, ResolveMethodName);
+            var file = frame.GetFileName();
+            var line = frame.GetFileLineNumber();
+
+            result.Add(new EfStackFrame(
+                name,
+                string.IsNullOrEmpty(file) ? null : file,
+                line == 0 ? null : (int?)line));
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Returns up to <paramref name="maxFrames"/> user-code frames, skipping
     /// the first <paramref name="skipFrames"/> frames from the top of the stack.
     /// </summary>
