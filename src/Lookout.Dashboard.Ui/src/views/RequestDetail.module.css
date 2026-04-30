@@ -506,6 +506,208 @@
   background: var(--color-fg-muted);
 }
 
+/* ─── Exception source badge ────────────────────────────────────────────── */
+
+.excSourceBadge {
+  border-color: var(--color-error-border);
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+}
+
+/* ─── Exception type name (in row preview) ──────────────────────────────── */
+
+.exceptionTypeName {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  color: var(--color-error-fg);
+}
+
+/* ─── Handled / unhandled chips ─────────────────────────────────────────── */
+
+.handledChip,
+.unhandledChip {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.handledChip {
+  border: 1px solid var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+}
+
+.unhandledChip {
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+}
+
+/* ─── Inner exception list ───────────────────────────────────────────────── */
+
+.innerExceptionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.innerExceptionItem {
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+}
+
+/* ─── Log source badge ───────────────────────────────────────────────────── */
+
+.logSourceBadge {
+  border-color: var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+}
+
+/* ─── Log level badge ────────────────────────────────────────────────────── */
+
+.levelBadge {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+}
+
+.levelTrace,
+.levelDebug {
+  color: var(--color-fg-subtle);
+  border-color: var(--color-border-muted);
+  background: transparent;
+}
+
+.levelInfo {
+  color: var(--color-info-fg);
+  border-color: var(--color-info-border);
+  background: var(--color-info-bg-subtle);
+}
+
+.levelWarn {
+  color: var(--color-warn-fg);
+  border-color: var(--color-warn-border);
+  background: var(--color-warn-bg-subtle);
+}
+
+.levelError,
+.levelCritical {
+  color: var(--color-error-fg);
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg-subtle);
+}
+
+/* ─── Level filter chips ─────────────────────────────────────────────────── */
+
+.levelFilterChips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.levelFilterChip {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+}
+
+.levelFilterChip:hover {
+  background: var(--color-bg-hover);
+}
+
+.levelFilterChip:focus-visible {
+  outline: 2px solid var(--color-accent-ring);
+  outline-offset: 1px;
+}
+
+.levelFilterChipActive {
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-fg);
+  background: var(--color-accent-bg-subtle);
+}
+
+/* ─── Log category (abbreviated) ────────────────────────────────────────── */
+
+.logCategory {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  color: var(--color-fg-muted);
+  font-family: var(--font-mono);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Dump source badge ──────────────────────────────────────────────────── */
+
+.dumpSourceBadge {
+  border-color: var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+  font-style: italic;
+}
+
+/* ─── Dump label ─────────────────────────────────────────────────────────── */
+
+.dumpLabel {
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  font-family: var(--font-mono);
+  color: var(--color-fg-default);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.dumpNoLabel {
+  color: var(--color-fg-subtle);
+  font-style: italic;
+}
+
+/* ─── Dump caller location ───────────────────────────────────────────────── */
+
+.dumpCallerLocation {
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-family: var(--font-mono);
+  color: var(--color-fg-subtle);
+  white-space: nowrap;
+}
+
+/* ─── Dump truncation marker ─────────────────────────────────────────────── */
+
+.dumpTruncationMarker {
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  color: var(--color-warn-fg);
+  font-style: italic;
+  padding-top: var(--space-2);
+}
+
 /* ─── Hit ratio chip ────────────────────────────────────────────────────── */
 
 .hitRatioChip {
