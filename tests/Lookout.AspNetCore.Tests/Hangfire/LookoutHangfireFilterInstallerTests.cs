@@ -22,7 +22,8 @@ public sealed class LookoutHangfireFilterInstallerTests : IDisposable
         var options = Options.Create(new LookoutOptions());
         _clientFilter = new LookoutHangfireClientFilter(
             recorder, options, NullLogger<LookoutHangfireClientFilter>.Instance);
-        _serverFilter = new LookoutHangfireServerFilter();
+        _serverFilter = new LookoutHangfireServerFilter(
+            recorder, options, NullLogger<LookoutHangfireServerFilter>.Instance);
     }
 
     public void Dispose()
