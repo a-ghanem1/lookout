@@ -6,6 +6,8 @@ import type {
   DumpEntryContent,
   EntryDto,
   ExceptionEntryContent,
+  JobEnqueueEntryContent,
+  JobExecutionEntryContent,
   LogEntryContent,
   OutboundHttpEntryContent,
 } from '../api/types';
@@ -899,6 +901,71 @@ describe('RequestDetail — Dump section', () => {
   });
 });
 
+// ── Job helpers ───────────────────────────────────────────────────────────────
+
+function jobEnqueueEntry(
+  id: string,
+  overrides: Partial<JobEnqueueEntryContent> = {},
+): EntryDto {
+  const content: JobEnqueueEntryContent = {
+    jobId: `hangfire-${id}`,
+    jobType: 'WebApp.Jobs.SendEmailJob',
+    methodName: 'Execute',
+    arguments: [{ name: 'email', type: 'System.String', value: '"alice@example.com"' }],
+    queue: 'default',
+    state: 'Enqueued',
+    errorType: null,
+    errorMessage: null,
+    ...overrides,
+  };
+  return {
+    id,
+    type: 'job-enqueue',
+    timestamp: 1_700_000_000_800,
+    requestId: 'req-42',
+    durationMs: 0.5,
+    tags: {
+      'job.id': content.jobId,
+      'job.type': content.jobType ?? '',
+      'job.method': content.methodName,
+      'job.enqueue': 'true',
+    },
+    content,
+  };
+}
+
+function jobExecutionEntry(
+  id: string,
+  state: 'Succeeded' | 'Failed' = 'Succeeded',
+  overrides: Partial<JobExecutionEntryContent> = {},
+): EntryDto {
+  const content: JobExecutionEntryContent = {
+    jobId: `hangfire-${id}`,
+    jobType: 'WebApp.Jobs.SendEmailJob',
+    methodName: 'Execute',
+    enqueueRequestId: 'req-42',
+    state,
+    errorType: state === 'Failed' ? 'System.InvalidOperationException' : null,
+    errorMessage: state === 'Failed' ? 'Email failed' : null,
+    ...overrides,
+  };
+  return {
+    id,
+    type: 'job-execution',
+    timestamp: 1_700_000_001_000,
+    requestId: 'req-42',
+    durationMs: 120.5,
+    tags: {
+      'job.id': content.jobId,
+      'job.type': content.jobType ?? '',
+      'job.method': content.methodName,
+      'job.state': state,
+      'job.execute': 'true',
+    },
+    content,
+  };
+}
+
 // ── Section ordering ──────────────────────────────────────────────────────────
 
 describe('RequestDetail — section ordering', () => {
@@ -959,6 +1026,30 @@ describe('RequestDetail — section ordering', () => {
     }
   });
 
+  it('all seven sections render in correct order including jobs', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      exceptionEntry('exc-1'),
+      efEntry('ef-1', 'SELECT 1'),
+      httpOutEntry('out-1'),
+      cacheEntry('c1', 'Get', true),
+      logEntry('log-1', 'Information'),
+      dumpEntry('dump-1'),
+      jobEnqueueEntry('enq-1'),
+    ];
+    render(<DetailBody entries={entries} />);
+    const sections = [
+      'exception-section', 'db-section', 'http-out-section',
+      'cache-section', 'log-section', 'dump-section', 'job-section',
+    ].map((id) => screen.getByTestId(id));
+
+    for (let i = 0; i < sections.length - 1; i++) {
+      expect(
+        sections[i].compareDocumentPosition(sections[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
   it('EXC/LOG/DUMP source badges all render with correct labels', () => {
     const entries: EntryDto[] = [
       httpEntry,
@@ -970,5 +1061,123 @@ describe('RequestDetail — section ordering', () => {
     expect(screen.getByTestId('exc-source-badge')).toHaveTextContent('EXC');
     expect(screen.getByTestId('log-source-badge')).toHaveTextContent('LOG');
     expect(screen.getByTestId('dump-source-badge')).toHaveTextContent('DUMP');
+  });
+});
+
+// ── Jobs section ──────────────────────────────────────────────────────────────
+
+describe('RequestDetail — Jobs section', () => {
+  it('renders section when job-enqueue entries present', () => {
+    render(<DetailBody entries={[httpEntry, jobEnqueueEntry('enq-1')]} />);
+    expect(screen.getByTestId('job-section')).toBeInTheDocument();
+  });
+
+  it('renders section when job-execution entries present', () => {
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1')]} />);
+    expect(screen.getByTestId('job-section')).toBeInTheDocument();
+  });
+
+  it('does not render section when no job entries', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    expect(screen.queryByTestId('job-section')).not.toBeInTheDocument();
+  });
+
+  it('renders ENQ badge for enqueue rows', () => {
+    render(<DetailBody entries={[httpEntry, jobEnqueueEntry('enq-1')]} />);
+    expect(screen.getByTestId('job-enq-badge')).toHaveTextContent('ENQ');
+  });
+
+  it('renders EXEC badge for execution rows', () => {
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1')]} />);
+    expect(screen.getByTestId('job-exec-badge')).toHaveTextContent('EXEC');
+  });
+
+  it('renders Succeeded state badge on succeeded execution row', () => {
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1', 'Succeeded')]} />);
+    expect(screen.getByTestId('job-execution-state')).toHaveTextContent('Succeeded');
+  });
+
+  it('renders Failed state badge on failed execution row', () => {
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1', 'Failed')]} />);
+    expect(screen.getByTestId('job-execution-state')).toHaveTextContent('Failed');
+  });
+
+  it('renders enqueue state badge on enqueue row', () => {
+    render(<DetailBody entries={[httpEntry, jobEnqueueEntry('enq-1')]} />);
+    expect(screen.getByTestId('job-enqueue-state')).toHaveTextContent('Enqueued');
+  });
+
+  it('shows queue chip on enqueue row', () => {
+    render(<DetailBody entries={[httpEntry, jobEnqueueEntry('enq-1', { queue: 'critical' })]} />);
+    expect(screen.getByTestId('job-queue-chip')).toHaveTextContent('critical');
+  });
+
+  it('shows failed chip in header when execution entry failed', () => {
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1', 'Failed')]} />);
+    expect(screen.getByTestId('job-failed-chip')).toHaveTextContent('1 failed');
+  });
+
+  it('does not show failed chip when all executions succeeded', () => {
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1', 'Succeeded')]} />);
+    expect(screen.queryByTestId('job-failed-chip')).not.toBeInTheDocument();
+  });
+
+  it('renders both enqueue and execution rows together', () => {
+    render(
+      <DetailBody
+        entries={[httpEntry, jobEnqueueEntry('enq-1'), jobExecutionEntry('exec-1')]}
+      />,
+    );
+    expect(screen.getByTestId('job-enqueue-row')).toBeInTheDocument();
+    expect(screen.getByTestId('job-execution-row')).toBeInTheDocument();
+  });
+
+  it('toggles expanded enqueue row and shows job id and arguments', async () => {
+    const user = userEvent.setup();
+    render(<DetailBody entries={[httpEntry, jobEnqueueEntry('enq-1')]} />);
+    expect(screen.queryByTestId('job-enqueue-row-body')).not.toBeInTheDocument();
+    const btn = screen.getByTestId('job-enqueue-row').querySelector('button')!;
+    await user.click(btn);
+    const body = screen.getByTestId('job-enqueue-row-body');
+    expect(body).toBeInTheDocument();
+    expect(body).toHaveTextContent('hangfire-enq-1');
+    expect(body).toHaveTextContent('email');
+  });
+
+  it('toggles expanded execution row and shows error info when failed', async () => {
+    const user = userEvent.setup();
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1', 'Failed')]} />);
+    const btn = screen.getByTestId('job-execution-row').querySelector('button')!;
+    await user.click(btn);
+    const body = screen.getByTestId('job-execution-row-body');
+    expect(body).toBeInTheDocument();
+    expect(body).toHaveTextContent('System.InvalidOperationException');
+    expect(body).toHaveTextContent('Email failed');
+  });
+
+  it('expanded execution row shows enqueue request link', async () => {
+    const user = userEvent.setup();
+    render(<DetailBody entries={[httpEntry, jobExecutionEntry('exec-1')]} />);
+    const btn = screen.getByTestId('job-execution-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.getByTestId('enqueue-request-link')).toBeInTheDocument();
+    expect(screen.getByTestId('enqueue-request-link')).toHaveTextContent('req-42');
+  });
+
+  it('job section appears after dump section', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      dumpEntry('dump-1'),
+      jobEnqueueEntry('enq-1'),
+    ];
+    render(<DetailBody entries={entries} />);
+    const dump = screen.getByTestId('dump-section');
+    const job = screen.getByTestId('job-section');
+    expect(dump.compareDocumentPosition(job) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows side panel when only job entries present', () => {
+    render(<DetailBody entries={[httpEntry, jobEnqueueEntry('enq-1')]} />);
+    expect(screen.getByTestId('job-section')).toBeInTheDocument();
   });
 });

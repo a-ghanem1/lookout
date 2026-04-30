@@ -1,6 +1,7 @@
 import styles from './App.module.css';
 import { AppShell } from './components/AppShell';
 import { useHashRoute } from './router/hashRouter';
+import { JobPage } from './views/JobPage';
 import { RequestDetail } from './views/RequestDetail';
 import { RequestList } from './views/RequestList';
 
@@ -10,6 +11,7 @@ export default function App() {
     <AppShell>
       {route.name === 'list' && <RequestList />}
       {route.name === 'detail' && <RequestDetail id={route.id} />}
+      {route.name === 'job' && <JobPage id={route.id} />}
       {route.name === 'not-found' && (
         <div className={styles.notFound}>
           <a href="#/">Back to requests</a>

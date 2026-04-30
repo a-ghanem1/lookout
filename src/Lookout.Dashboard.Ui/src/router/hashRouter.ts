@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 export type Route =
   | { name: 'list' }
   | { name: 'detail'; id: string }
+  | { name: 'job'; id: string }
   | { name: 'not-found' };
 
 export function parseHash(hash: string): Route {
@@ -13,6 +14,9 @@ export function parseHash(hash: string): Route {
   const parts = clean.split('/').filter(Boolean);
   if (parts[0] === 'requests' && parts.length === 2 && parts[1]) {
     return { name: 'detail', id: decodeURIComponent(parts[1]) };
+  }
+  if (parts[0] === 'jobs' && parts.length === 2 && parts[1]) {
+    return { name: 'job', id: decodeURIComponent(parts[1]) };
   }
   return { name: 'not-found' };
 }
@@ -33,6 +37,8 @@ export function href(route: Route): string {
       return '#/';
     case 'detail':
       return `#/requests/${encodeURIComponent(route.id)}`;
+    case 'job':
+      return `#/jobs/${encodeURIComponent(route.id)}`;
     case 'not-found':
       return '#/';
   }

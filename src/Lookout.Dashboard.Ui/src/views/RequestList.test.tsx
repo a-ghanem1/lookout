@@ -350,4 +350,42 @@ describe('RequestList', () => {
     await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
     expect(screen.queryByTestId('dump-count-badge')).not.toBeInTheDocument();
   });
+
+  it('shows jobs count badge when job.enqueue.count tag is present and > 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'job.enqueue.count': '3' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('job-count-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('job-count-badge')).toHaveTextContent('jobs: 3');
+  });
+
+  it('does not show jobs count badge when job.enqueue.count is absent', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('job-count-badge')).not.toBeInTheDocument();
+  });
+
+  it('does not show jobs count badge when job.enqueue.count is 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'job.enqueue.count': '0' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('job-count-badge')).not.toBeInTheDocument();
+  });
 });

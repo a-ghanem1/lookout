@@ -124,6 +124,33 @@ export interface DumpEntryContent {
   callerMember: string;
 }
 
+export interface JobArgument {
+  name: string;
+  type: string;
+  value: string;
+}
+
+export interface JobEnqueueEntryContent {
+  jobId: string;
+  jobType?: string | null;
+  methodName: string;
+  arguments: JobArgument[];
+  queue: string;
+  state: string;
+  errorType?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface JobExecutionEntryContent {
+  jobId: string;
+  jobType?: string | null;
+  methodName: string;
+  enqueueRequestId?: string | null;
+  state: string;
+  errorType?: string | null;
+  errorMessage?: string | null;
+}
+
 export interface EntryListResponse {
   entries: EntryDto[];
   nextBefore?: number | null;

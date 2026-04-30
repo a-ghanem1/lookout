@@ -8,6 +8,8 @@ import type {
   EntryDto,
   ExceptionEntryContent,
   HttpEntryContent,
+  JobEnqueueEntryContent,
+  JobExecutionEntryContent,
   LogEntryContent,
   OutboundHttpEntryContent,
   SqlEntryContent,
@@ -84,6 +86,9 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
   const dumpEntries = entries
     .filter((e) => e.type === 'dump')
     .sort((a, b) => a.timestamp - b.timestamp);
+  const jobEntries = entries
+    .filter((e) => e.type === 'job-enqueue' || e.type === 'job-execution')
+    .sort((a, b) => a.timestamp - b.timestamp);
 
   const hasSidePanel =
     hasDbEntries ||
@@ -91,7 +96,8 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
     cacheEntries.length > 0 ||
     exceptionEntries.length > 0 ||
     logEntries.length > 0 ||
-    dumpEntries.length > 0;
+    dumpEntries.length > 0 ||
+    jobEntries.length > 0;
 
   return (
     <div className={styles.root} data-testid="request-detail">
@@ -132,6 +138,7 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
             <CacheSection entries={cacheEntries} />
             <LogSection entries={logEntries} />
             <DumpSection entries={dumpEntries} />
+            <JobsSection entries={jobEntries} />
           </div>
         )}
       </div>
@@ -969,6 +976,213 @@ function DumpRow({ entry }: { entry: EntryDto }) {
               JSON truncated
             </div>
           ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+// ─── Jobs section (enqueue + execution) ──────────────────────────────────────
+
+function shortTypeName(fullName: string | null | undefined): string {
+  if (!fullName) return '—';
+  const dot = fullName.lastIndexOf('.');
+  return dot >= 0 ? fullName.slice(dot + 1) : fullName;
+}
+
+function JobsSection({ entries }: { entries: EntryDto[] }) {
+  if (entries.length === 0) return null;
+
+  const failedCount = entries.filter(
+    (e) => e.type === 'job-execution' && (e.content as JobExecutionEntryContent)?.state === 'Failed',
+  ).length;
+
+  return (
+    <details className={styles.section} open data-testid="job-section">
+      <summary className={styles.sectionSummary}>
+        <span>
+          Jobs <span className={styles.caption}>{entries.length}</span>
+        </span>
+        {failedCount > 0 ? (
+          <span className={styles.jobFailedChip} data-testid="job-failed-chip">
+            {failedCount} failed
+          </span>
+        ) : null}
+      </summary>
+      <div className={styles.sectionBody}>
+        <ul className={styles.efList}>
+          {entries.map((e) =>
+            e.type === 'job-enqueue' ? (
+              <JobEnqueueRow key={e.id} entry={e} />
+            ) : (
+              <JobExecutionRow key={e.id} entry={e} />
+            ),
+          )}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
+function JobEnqueueRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as JobEnqueueEntryContent;
+  const typeName = shortTypeName(content?.jobType);
+
+  return (
+    <li className={styles.efRow} data-testid="job-enqueue-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span
+          className={`${styles.dbSourceBadge} ${styles.jobSourceBadgeEnq}`}
+          data-testid="job-enq-badge"
+        >
+          ENQ
+        </span>
+        <span className={styles.efPreview}>
+          {typeName}.{content?.methodName ?? '—'}
+        </span>
+        <span className={styles.efMeta}>
+          {content?.queue ? (
+            <span className={styles.jobQueueChip} data-testid="job-queue-chip">
+              {content.queue}
+            </span>
+          ) : null}
+          <span
+            className={`${styles.jobStateBadge} ${styles.jobStateNeutral}`}
+            data-testid="job-enqueue-state"
+          >
+            {content?.state ?? '—'}
+          </span>
+          <span className={styles.efDuration}>{formatDuration(entry.durationMs)}</span>
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="job-enqueue-row-body">
+          <div>
+            <div className={styles.metaLabel}>Job ID</div>
+            <div className={styles.metaValue}>{content?.jobId ?? '—'}</div>
+          </div>
+          {content?.jobType ? (
+            <div>
+              <div className={styles.metaLabel}>Type</div>
+              <div className={styles.metaValue}>{content.jobType}</div>
+            </div>
+          ) : null}
+          {content?.arguments && content.arguments.length > 0 ? (
+            <div>
+              <div className={styles.metaLabel}>Arguments</div>
+              <table className={styles.headersTable}>
+                <tbody>
+                  {content.arguments.map((arg, i) => (
+                    <tr key={i}>
+                      <td className={styles.headerName}>{arg.name}</td>
+                      <td className={styles.headerValue}>{arg.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+          {content?.errorType ? (
+            <div>
+              <div className={styles.metaLabel}>Error</div>
+              <div className={styles.metaValue}>
+                {content.errorType}: {content.errorMessage}
+              </div>
+            </div>
+          ) : null}
+          <a
+            href={`#/jobs/${encodeURIComponent(entry.id)}`}
+            className={styles.jobViewLink}
+            data-testid="job-view-link"
+          >
+            View full details →
+          </a>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function JobExecutionRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as JobExecutionEntryContent;
+  const typeName = shortTypeName(content?.jobType);
+  const succeeded = content?.state === 'Succeeded';
+
+  return (
+    <li className={styles.efRow} data-testid="job-execution-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span
+          className={`${styles.dbSourceBadge} ${styles.jobSourceBadgeExec}`}
+          data-testid="job-exec-badge"
+        >
+          EXEC
+        </span>
+        <span className={styles.efPreview}>
+          {typeName}.{content?.methodName ?? '—'}
+        </span>
+        <span className={styles.efMeta}>
+          <span
+            className={`${styles.jobStateBadge} ${succeeded ? styles.jobStateSucceeded : styles.jobStateFailed}`}
+            data-testid="job-execution-state"
+          >
+            {content?.state ?? '—'}
+          </span>
+          <span className={styles.efDuration}>{formatDuration(entry.durationMs)}</span>
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="job-execution-row-body">
+          <div>
+            <div className={styles.metaLabel}>Job ID</div>
+            <div className={styles.metaValue}>{content?.jobId ?? '—'}</div>
+          </div>
+          {content?.jobType ? (
+            <div>
+              <div className={styles.metaLabel}>Type</div>
+              <div className={styles.metaValue}>{content.jobType}</div>
+            </div>
+          ) : null}
+          {content?.enqueueRequestId ? (
+            <div>
+              <div className={styles.metaLabel}>Enqueue request ID</div>
+              <div className={styles.metaValue}>
+                <a
+                  href={`#/requests/${encodeURIComponent(content.enqueueRequestId)}`}
+                  className={styles.jobViewLink}
+                  data-testid="enqueue-request-link"
+                >
+                  {content.enqueueRequestId}
+                </a>
+              </div>
+            </div>
+          ) : null}
+          {content?.errorType ? (
+            <div>
+              <div className={styles.metaLabel}>Error</div>
+              <div className={styles.metaValue}>
+                {content.errorType}: {content.errorMessage}
+              </div>
+            </div>
+          ) : null}
+          <a
+            href={`#/jobs/${encodeURIComponent(entry.id)}`}
+            className={styles.jobViewLink}
+            data-testid="job-view-link"
+          >
+            View full details →
+          </a>
         </div>
       ) : null}
     </li>

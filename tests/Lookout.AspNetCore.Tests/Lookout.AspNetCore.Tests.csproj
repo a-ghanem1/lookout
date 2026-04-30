@@ -30,9 +30,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Hangfire.Core" Version="1.8.14" />
+    <!-- Pins Newtonsoft.Json to 13.0.3 to fix CVE (GHSA-5crp-9r3c-p9vr) from transitive 11.0.1 -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Lookout.AspNetCore\Lookout.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\Lookout.Storage.Sqlite\Lookout.Storage.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\Lookout.EntityFrameworkCore\Lookout.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Lookout.Hangfire\Lookout.Hangfire.csproj" />
   </ItemGroup>
 
 </Project>
