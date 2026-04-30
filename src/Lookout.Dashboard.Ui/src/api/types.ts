@@ -3,7 +3,7 @@
  * Keep in sync with Lookout.Core.Schemas.HttpEntryContent and EntryDto / EntryListResponse.
  */
 
-export type EntryType = 'http' | 'ef' | 'sql' | 'cache' | 'http-out' | 'log' | 'exception' | 'job' | 'dump';
+export type EntryType = 'http' | 'ef' | 'sql' | 'cache' | 'http-out' | 'log' | 'exception' | 'job' | 'job-enqueue' | 'job-execution' | 'dump';
 
 export interface EntryDto {
   id: string;
@@ -164,4 +164,15 @@ export interface EntryListQuery {
   q?: string;
   before?: number;
   limit?: number;
+}
+
+export interface EntryCounts {
+  requests: number;
+  queries: number;
+  exceptions: number;
+  logs: number;
+  cache: number;
+  httpClients: number;
+  jobs: number;
+  dump: number;
 }

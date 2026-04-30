@@ -12,4 +12,7 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+
+  /* Layout dimensions */
+  --sidebar-width: 240px;
 }

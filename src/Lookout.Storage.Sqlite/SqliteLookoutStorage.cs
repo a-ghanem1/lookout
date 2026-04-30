@@ -225,6 +225,37 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         return results;
     }
 
+    public async Task<(long Requests, long Queries, long Exceptions, long Logs, long Cache, long HttpClients, long Jobs, long Dump)> GetCountsAsync(CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            "SELECT " +
+            "SUM(CASE WHEN type = 'http' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type IN ('ef','sql') THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'exception' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'log' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'cache' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'http-out' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type IN ('job-enqueue','job-execution') THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'dump' THEN 1 ELSE 0 END) " +
+            "FROM entries";
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+            return (0, 0, 0, 0, 0, 0, 0, 0);
+
+        return (
+            reader.IsDBNull(0) ? 0 : reader.GetInt64(0),
+            reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
+            reader.IsDBNull(2) ? 0 : reader.GetInt64(2),
+            reader.IsDBNull(3) ? 0 : reader.GetInt64(3),
+            reader.IsDBNull(4) ? 0 : reader.GetInt64(4),
+            reader.IsDBNull(5) ? 0 : reader.GetInt64(5),
+            reader.IsDBNull(6) ? 0 : reader.GetInt64(6),
+            reader.IsDBNull(7) ? 0 : reader.GetInt64(7));
+    }
+
     public void Dispose() => (_factory as IDisposable)?.Dispose();
 
     private static LookoutEntry ReadEntry(SqliteDataReader reader) =>

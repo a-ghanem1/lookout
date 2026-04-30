@@ -1,0 +1,130 @@
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--color-bg-subtle);
+  border-right: 1px solid var(--color-border-default);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--color-border-muted);
+  color: var(--color-fg-default);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.brand:hover {
+  color: var(--color-accent-fg);
+}
+
+.brandMark {
+  width: var(--space-6);
+  height: var(--space-6);
+  color: var(--color-accent-fg);
+  flex-shrink: 0;
+}
+
+.brandWordmark {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-md-size);
+  line-height: var(--text-md-line);
+  letter-spacing: -0.02em;
+}
+
+.nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-fg-muted);
+  border-left: 2px solid transparent;
+  transition:
+    background-color var(--duration-hover) var(--ease-out),
+    color var(--duration-hover) var(--ease-out);
+}
+
+.item:hover:not(.itemActive) {
+  background: var(--color-bg-hover);
+  color: var(--color-fg-default);
+}
+
+.itemActive {
+  background: var(--color-bg-hover);
+  border-left-color: var(--color-accent-fg);
+  color: var(--color-accent-fg);
+  font-weight: var(--font-weight-medium);
+}
+
+.itemIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.itemLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemCount {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-fg-subtle);
+}
+
+.footer {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border-muted);
+}
+
+.themeButton {
+  width: 100%;
+  height: var(--space-8);
+  padding: var(--space-0) var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-fg-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-hover) var(--ease-out),
+    color var(--duration-hover) var(--ease-out);
+}
+
+.themeButton:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-fg-default);
+}

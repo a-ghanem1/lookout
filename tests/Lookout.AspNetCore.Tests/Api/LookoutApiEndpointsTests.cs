@@ -421,5 +421,92 @@ public sealed class LookoutApiEndpointsTests : IDisposable
         return payload!;
     }
 
+    [Fact]
+    public async Task GetEntryCounts_ReturnsZerosForEmptyDb()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries/counts");
+        await app.StopAsync();
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var counts = await resp.Content.ReadFromJsonAsync<EntryCounts>(LookoutJson.Options);
+        counts.Should().NotBeNull();
+        counts!.Requests.Should().Be(0);
+        counts.Queries.Should().Be(0);
+        counts.Exceptions.Should().Be(0);
+        counts.Logs.Should().Be(0);
+        counts.Cache.Should().Be(0);
+        counts.HttpClients.Should().Be(0);
+        counts.Jobs.Should().Be(0);
+        counts.Dump.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetEntryCounts_CorrectlyGroupsByType()
+    {
+        var dbPath = TempDbPath();
+        var rid = "req-counts";
+        await SeedAsync(dbPath,
+            MakeHttp("GET", "/a", 200, offsetMs: -6000, requestId: rid),
+            MakeHttp("POST", "/b", 201, offsetMs: -5000),
+            MakeEf("SELECT 1", offsetMs: -4000, requestId: rid, rowsAffected: 1),
+            MakeEntry("sql", rid, offsetMs: -3500),
+            MakeEntry("exception", rid, offsetMs: -3000),
+            MakeEntry("log", null, offsetMs: -2500),
+            MakeEntry("cache", rid, offsetMs: -2000),
+            MakeEntry("http-out", null, offsetMs: -1500),
+            MakeEntry("job-enqueue", rid, offsetMs: -1000),
+            MakeEntry("job-execution", null, offsetMs: -500),
+            MakeEntry("dump", rid, offsetMs: 0));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries/counts");
+        await app.StopAsync();
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var counts = await resp.Content.ReadFromJsonAsync<EntryCounts>(LookoutJson.Options);
+        counts.Should().NotBeNull();
+        counts!.Requests.Should().Be(2, "two http entries");
+        counts.Queries.Should().Be(2, "one ef + one sql");
+        counts.Exceptions.Should().Be(1);
+        counts.Logs.Should().Be(1);
+        counts.Cache.Should().Be(1);
+        counts.HttpClients.Should().Be(1);
+        counts.Jobs.Should().Be(2, "one job-enqueue + one job-execution");
+        counts.Dump.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetEntryCounts_ResponseHasNoCacheHeader()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries/counts");
+        await app.StopAsync();
+
+        resp.Headers.CacheControl.Should().NotBeNull();
+        resp.Headers.CacheControl!.NoStore.Should().BeTrue();
+    }
+
+    private static LookoutEntry MakeEntry(string type, string? requestId, long offsetMs)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: type,
+            Timestamp: ts,
+            RequestId: requestId,
+            DurationMs: 1.0,
+            Tags: new Dictionary<string, string> { ["entry.type"] = type },
+            Content: "{}");
+    }
+
     private static string PathOf(EntryDto dto) => dto.Tags["http.path"];
 }
