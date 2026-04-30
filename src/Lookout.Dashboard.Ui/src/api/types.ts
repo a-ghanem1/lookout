@@ -156,6 +156,11 @@ export interface EntryListResponse {
   nextBefore?: number | null;
 }
 
+export interface TagFilter {
+  key: string;
+  value: string;
+}
+
 export interface EntryListQuery {
   type?: string;
   method?: string;
@@ -171,6 +176,7 @@ export interface EntryListQuery {
   errorsOnly?: boolean;
   minLevel?: string;
   handled?: boolean;
+  tags?: TagFilter[];
 }
 
 export interface CacheSummary {
@@ -190,4 +196,37 @@ export interface EntryCounts {
   httpClients: number;
   jobs: number;
   dump: number;
+}
+
+export interface SearchResultDto {
+  id: string;
+  type: string;
+  timestamp: number;
+  requestId?: string | null;
+  snippet: string;
+}
+
+export interface HostInfo {
+  os: 'windows' | 'macos' | 'linux';
+}
+
+export interface LogHistogramBucket {
+  from: number;
+  to: number;
+  byLevel: {
+    trace: number;
+    debug: number;
+    information: number;
+    warning: number;
+    error: number;
+    critical: number;
+  };
+}
+
+export interface CacheByKeyStats {
+  key: string;
+  hits: number;
+  misses: number;
+  sets: number;
+  hitRatio: number;
 }

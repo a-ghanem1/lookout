@@ -20,6 +20,7 @@ namespace Lookout.Core;
 /// <param name="ErrorsOnly">When true, restricts to entries that have an <c>http.error</c> tag (network-level failures).</param>
 /// <param name="MinLevel">Inclusive minimum log level for <c>log.level</c> tag (Trace/Debug/Information/Warning/Error/Critical).</param>
 /// <param name="Handled">When set, filters exceptions by <c>exception.handled</c> tag.</param>
+/// <param name="Tags">Tag key=value pairs that must ALL be present (AND semantics). Each tuple is (key, value).</param>
 public sealed record LookoutQuery(
     string? Type = null,
     IReadOnlyList<string>? TypeIn = null,
@@ -36,4 +37,5 @@ public sealed record LookoutQuery(
     string? UrlHost = null,
     bool? ErrorsOnly = null,
     string? MinLevel = null,
-    bool? Handled = null);
+    bool? Handled = null,
+    IReadOnlyList<(string Key, string Value)>? Tags = null);

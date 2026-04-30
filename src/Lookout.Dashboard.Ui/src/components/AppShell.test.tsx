@@ -4,6 +4,11 @@ import { AppShell } from './AppShell';
 
 describe('AppShell', () => {
   beforeEach(() => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>

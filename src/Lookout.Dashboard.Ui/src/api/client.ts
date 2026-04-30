@@ -1,4 +1,14 @@
-import type { CacheSummary, EntryCounts, EntryDto, EntryListQuery, EntryListResponse } from './types';
+import type {
+  CacheByKeyStats,
+  CacheSummary,
+  EntryCounts,
+  EntryDto,
+  EntryListQuery,
+  EntryListResponse,
+  HostInfo,
+  LogHistogramBucket,
+  SearchResultDto,
+} from './types';
 
 /**
  * API URLs are relative to `<base href>`, which the server injects into index.html
@@ -23,6 +33,11 @@ function qs(query: EntryListQuery): string {
   if (query.errorsOnly) params.set('errors_only', 'true');
   if (query.minLevel) params.set('min_level', query.minLevel);
   if (query.handled !== undefined) params.set('handled', String(query.handled));
+  if (query.tags) {
+    for (const { key, value } of query.tags) {
+      params.append('tag', `${key}:${value}`);
+    }
+  }
   const s = params.toString();
   return s ? `?${s}` : '';
 }
@@ -61,4 +76,51 @@ export async function getRequestEntries(
   const resp = await fetch(`${API_BASE}requests/${encodeURIComponent(requestId)}`, { signal });
   if (!resp.ok) throw new Error(`request: ${resp.status}`);
   return (await resp.json()) as EntryDto[];
+}
+
+export async function searchEntries(
+  q: string,
+  limit = 50,
+  signal?: AbortSignal,
+): Promise<SearchResultDto[]> {
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  const resp = await fetch(`${API_BASE}search?${params}`, { signal });
+  if (!resp.ok) throw new Error(`search: ${resp.status}`);
+  return (await resp.json()) as SearchResultDto[];
+}
+
+export async function getHostInfo(signal?: AbortSignal): Promise<HostInfo> {
+  const resp = await fetch(`${API_BASE}host`, { signal });
+  if (!resp.ok) throw new Error(`host: ${resp.status}`);
+  return (await resp.json()) as HostInfo;
+}
+
+export async function deleteAllEntries(signal?: AbortSignal): Promise<{ deleted: number }> {
+  const resp = await fetch(`${API_BASE}entries`, {
+    method: 'DELETE',
+    headers: { Origin: window.location.origin },
+    signal,
+  });
+  if (!resp.ok) throw new Error(`delete: ${resp.status}`);
+  return (await resp.json()) as { deleted: number };
+}
+
+export async function getLogHistogram(
+  bucketCount = 12,
+  signal?: AbortSignal,
+): Promise<LogHistogramBucket[]> {
+  const params = new URLSearchParams({ bucket_count: String(bucketCount) });
+  const resp = await fetch(`${API_BASE}entries/logs/histogram?${params}`, { signal });
+  if (!resp.ok) throw new Error(`histogram: ${resp.status}`);
+  return (await resp.json()) as LogHistogramBucket[];
+}
+
+export async function getCacheByKey(
+  limit = 10,
+  signal?: AbortSignal,
+): Promise<CacheByKeyStats[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const resp = await fetch(`${API_BASE}entries/cache/by-key?${params}`, { signal });
+  if (!resp.ok) throw new Error(`cache/by-key: ${resp.status}`);
+  return (await resp.json()) as CacheByKeyStats[];
 }

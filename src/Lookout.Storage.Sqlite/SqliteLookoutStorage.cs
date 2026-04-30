@@ -230,6 +230,17 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             cmd.Parameters.AddWithValue("@handled", handled ? "true" : "false");
         }
 
+        if (query.Tags is { Count: > 0 } tags)
+        {
+            for (var i = 0; i < tags.Count; i++)
+            {
+                var (tagKey, tagValue) = tags[i];
+                var pKey = $"@tagVal{i}";
+                where.Add($"json_extract(e.tags_json, '$.\"{tagKey}\"') = {pKey}");
+                cmd.Parameters.AddWithValue(pKey, tagValue);
+            }
+        }
+
         if (where.Count > 0)
         {
             sql.Append("WHERE ");
@@ -341,6 +352,146 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             reader.IsDBNull(5) ? 0 : reader.GetInt64(5),
             reader.IsDBNull(6) ? 0 : reader.GetInt64(6),
             reader.IsDBNull(7) ? 0 : reader.GetInt64(7));
+    }
+
+    public async Task<int> DeleteAllAsync(CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = (SqliteTransaction)tx;
+        cmd.CommandText = "DELETE FROM entries";
+        var deleted = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+        return deleted;
+    }
+
+    public async Task<IReadOnlyList<SearchResult>> SearchWithSnippetAsync(
+        string query, int limit, CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+
+        // Use snippet() to get highlighted text. Markers are §…§ — safe delimiters that
+        // don't appear in typical diagnostic content and survive JSON round-trips.
+        cmd.CommandText =
+            "SELECT e.id, e.type, e.timestamp_utc, e.request_id, " +
+            "snippet(entries_fts, 1, '§', '§', '…', 32) AS snip " +
+            "FROM entries e " +
+            "JOIN entries_fts ON entries_fts.rowid = e.rowid " +
+            "WHERE entries_fts MATCH @q " +
+            "ORDER BY entries_fts.rank " +
+            "LIMIT @limit";
+        cmd.Parameters.AddWithValue("@q", query);
+        cmd.Parameters.AddWithValue("@limit", limit);
+
+        var results = new List<SearchResult>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            results.Add(new SearchResult(
+                Id: Guid.Parse(reader.GetString(0)),
+                Type: reader.GetString(1),
+                Timestamp: DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)),
+                RequestId: reader.IsDBNull(3) ? null : reader.GetString(3),
+                Snippet: reader.IsDBNull(4) ? string.Empty : reader.GetString(4)));
+        }
+        return results;
+    }
+
+    public async Task<IReadOnlyList<LogHistogramBucket>> GetLogHistogramAsync(
+        int bucketCount, CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+
+        await using var rangeCmd = conn.CreateCommand();
+        rangeCmd.CommandText =
+            "SELECT MIN(timestamp_utc), MAX(timestamp_utc) FROM entries WHERE type = 'log'";
+        await using var rangeReader = await rangeCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        if (!await rangeReader.ReadAsync(ct).ConfigureAwait(false) || rangeReader.IsDBNull(0))
+            return Array.Empty<LogHistogramBucket>();
+
+        var minTs = rangeReader.GetInt64(0);
+        var maxTs = rangeReader.GetInt64(1);
+        await rangeReader.CloseAsync().ConfigureAwait(false);
+
+        if (minTs == maxTs) maxTs = minTs + 1;
+        var bucketMs = (maxTs - minTs + bucketCount - 1) / bucketCount;
+        if (bucketMs < 1) bucketMs = 1;
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            "SELECT " +
+            "  (timestamp_utc - @minTs) / @bucketMs AS bucket, " +
+            "  json_extract(tags_json, '$.\"log.level\"') AS level, " +
+            "  COUNT(*) AS cnt " +
+            "FROM entries WHERE type = 'log' " +
+            "GROUP BY bucket, level";
+        cmd.Parameters.AddWithValue("@minTs", minTs);
+        cmd.Parameters.AddWithValue("@bucketMs", bucketMs);
+
+        var bucketMap = new Dictionary<long, LogHistogramBucket>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var b = reader.GetInt64(0);
+            var level = reader.IsDBNull(1) ? "Information" : reader.GetString(1);
+            var cnt = reader.GetInt64(2);
+            if (!bucketMap.TryGetValue(b, out var bucket))
+            {
+                var from = minTs + b * bucketMs;
+                bucketMap[b] = bucket = new LogHistogramBucket(
+                    From: from, To: from + bucketMs,
+                    Trace: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Critical: 0);
+            }
+            bucketMap[b] = level switch
+            {
+                "Trace" => bucket with { Trace = bucket.Trace + cnt },
+                "Debug" => bucket with { Debug = bucket.Debug + cnt },
+                "Information" => bucket with { Information = bucket.Information + cnt },
+                "Warning" => bucket with { Warning = bucket.Warning + cnt },
+                "Error" => bucket with { Error = bucket.Error + cnt },
+                "Critical" => bucket with { Critical = bucket.Critical + cnt },
+                _ => bucket with { Information = bucket.Information + cnt },
+            };
+        }
+        return bucketMap.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList();
+    }
+
+    public async Task<IReadOnlyList<CacheKeyStats>> GetCacheByKeyAsync(
+        int limit, CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            "SELECT " +
+            "  json_extract(tags_json, '$.\"cache.key\"') AS ckey, " +
+            "  SUM(CASE WHEN json_extract(tags_json, '$.\"cache.hit\"') = 'true' THEN 1 ELSE 0 END) AS hits, " +
+            "  SUM(CASE WHEN json_extract(tags_json, '$.\"cache.hit\"') = 'false' THEN 1 ELSE 0 END) AS misses, " +
+            "  SUM(CASE WHEN json_extract(content_json, '$.operation') = 'Set' THEN 1 ELSE 0 END) AS sets " +
+            "FROM entries WHERE type = 'cache' AND ckey IS NOT NULL " +
+            "GROUP BY ckey " +
+            "ORDER BY (hits + misses + sets) DESC " +
+            "LIMIT @limit";
+        cmd.Parameters.AddWithValue("@limit", limit);
+
+        var results = new List<CacheKeyStats>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var hits = reader.GetInt64(1);
+            var misses = reader.GetInt64(2);
+            var sets = reader.GetInt64(3);
+            var total = hits + misses;
+            var hitRatio = total > 0 ? (double)hits / total : 0.0;
+            results.Add(new CacheKeyStats(
+                Key: reader.GetString(0),
+                Hits: hits,
+                Misses: misses,
+                Sets: sets,
+                HitRatio: hitRatio));
+        }
+        return results;
     }
 
     public void Dispose() => (_factory as IDisposable)?.Dispose();
