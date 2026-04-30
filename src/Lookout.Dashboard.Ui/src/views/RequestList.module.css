@@ -262,3 +262,17 @@
   font-style: italic;
   white-space: nowrap;
 }
+
+.jobCountBadge {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-special-border);
+  color: var(--color-special-fg);
+  background: var(--color-special-bg-subtle);
+  white-space: nowrap;
+}

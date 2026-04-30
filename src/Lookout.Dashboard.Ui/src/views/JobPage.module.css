@@ -1,0 +1,218 @@
+.root {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-6);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.back {
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  color: var(--color-accent-fg);
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.typeBadge {
+  flex-shrink: 0;
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+
+.typeBadgeEnq {
+  border-color: var(--color-special-border);
+  color: var(--color-special-fg);
+  background: var(--color-special-bg-subtle);
+}
+
+.typeBadgeExec {
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-fg);
+  background: var(--color-accent-bg-subtle);
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-size: var(--text-md-size);
+  line-height: var(--text-md-line);
+  color: var(--color-fg-default);
+}
+
+.stateBadge {
+  flex-shrink: 0;
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+
+.stateSucceeded {
+  border-color: var(--color-success-border);
+  color: var(--color-success-fg);
+  background: var(--color-success-bg-subtle);
+}
+
+.stateFailed {
+  border-color: var(--color-error-border);
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+}
+
+/* ─── Meta grid ─────────────────────────────────────────────────────────── */
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+
+.metaLabel {
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-fg-muted);
+}
+
+.metaValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  color: var(--color-fg-default);
+  word-break: break-all;
+}
+
+.metaLink {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  color: var(--color-accent-fg);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.metaLink:hover {
+  text-decoration: underline;
+}
+
+/* ─── Section ───────────────────────────────────────────────────────────── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+
+.sectionLabel {
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-fg-muted);
+}
+
+.fieldValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  color: var(--color-fg-default);
+  word-break: break-all;
+}
+
+/* ─── Arguments table ───────────────────────────────────────────────────── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+}
+
+.th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  font-size: var(--text-2xs-size);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-fg-muted);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.td {
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border-muted);
+  vertical-align: top;
+}
+
+.argName {
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+}
+
+.argValue {
+  color: var(--color-fg-default);
+  word-break: break-all;
+}
+
+/* ─── Error block ───────────────────────────────────────────────────────── */
+
+.errorType {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  color: var(--color-error-fg);
+}
+
+.errorMessage {
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  color: var(--color-fg-default);
+}
+
+/* ─── Misc ──────────────────────────────────────────────────────────────── */
+
+.caption {
+  color: var(--color-fg-muted);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  font-style: italic;
+}
+
+.notFound {
+  padding: var(--space-16) var(--space-4);
+  text-align: center;
+  color: var(--color-fg-muted);
+}

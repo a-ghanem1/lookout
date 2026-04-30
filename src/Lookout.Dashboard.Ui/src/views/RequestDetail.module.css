@@ -722,3 +722,90 @@
   color: var(--color-special-fg);
   background: var(--color-special-bg-subtle);
 }
+
+/* ─── Job source badges (ENQ / EXEC) ────────────────────────────────────── */
+
+.jobSourceBadgeEnq {
+  border-color: var(--color-special-border);
+  color: var(--color-special-fg);
+  background: var(--color-special-bg-subtle);
+}
+
+.jobSourceBadgeExec {
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-fg);
+  background: var(--color-accent-bg-subtle);
+}
+
+/* ─── Job state badge ───────────────────────────────────────────────────── */
+
+.jobStateBadge {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.jobStateSucceeded {
+  border-color: var(--color-success-border);
+  color: var(--color-success-fg);
+  background: var(--color-success-bg-subtle);
+}
+
+.jobStateFailed {
+  border-color: var(--color-error-border);
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+}
+
+.jobStateNeutral {
+  border-color: var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+}
+
+/* ─── Job queue chip ────────────────────────────────────────────────────── */
+
+.jobQueueChip {
+  flex-shrink: 0;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+  font-family: var(--font-mono);
+}
+
+/* ─── Job failed chip (section header) ─────────────────────────────────── */
+
+.jobFailedChip {
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-mono);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+}
+
+/* ─── Job view link ─────────────────────────────────────────────────────── */
+
+.jobViewLink {
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  color: var(--color-accent-fg);
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+.jobViewLink:hover {
+  text-decoration: underline;
+}

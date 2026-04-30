@@ -154,6 +154,8 @@ function RequestRow({ entry }: { entry: EntryDto }) {
   const logCount = logCountStr !== undefined ? Number.parseInt(logCountStr, 10) : null;
   const dumpCountStr = entry.tags['dump.count'];
   const dumpCount = dumpCountStr !== undefined ? Number.parseInt(dumpCountStr, 10) : null;
+  const jobCountStr = entry.tags['job.enqueue.count'];
+  const jobCount = jobCountStr !== undefined ? Number.parseInt(jobCountStr, 10) : null;
 
   const go = () => {
     const target = entry.requestId ?? entry.id;
@@ -227,6 +229,11 @@ function RequestRow({ entry }: { entry: EntryDto }) {
           {dumpCount !== null && dumpCount > 0 ? (
             <span className={styles.dumpCountBadge} data-testid="dump-count-badge">
               dump: {dumpCount}
+            </span>
+          ) : null}
+          {jobCount !== null && jobCount > 0 ? (
+            <span className={styles.jobCountBadge} data-testid="job-count-badge">
+              jobs: {jobCount}
             </span>
           ) : null}
         </div>
