@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { listEntries } from '../../api/client';
 import type { DumpEntryContent, EntryDto } from '../../api/types';
@@ -5,6 +6,44 @@ import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
 import { formatRelative } from '../../format';
 import styles from './DumpPage.module.css';
+
+type JsonKind = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+
+const KIND_LABELS: Record<JsonKind, string> = {
+  object: '{ }',
+  array: '[ ]',
+  string: '" "',
+  number: '123',
+  boolean: 'T/F',
+  null: 'null',
+};
+
+const KIND_CSS: Record<JsonKind, string> = {
+  object: styles.kindObject,
+  array: styles.kindArray,
+  string: styles.kindString,
+  number: styles.kindNumber,
+  boolean: styles.kindBool,
+  null: styles.kindNull,
+};
+
+function getJsonKind(json: string): JsonKind {
+  const t = json.trim();
+  if (t.startsWith('{')) return 'object';
+  if (t.startsWith('[')) return 'array';
+  if (t === 'null') return 'null';
+  if (t === 'true' || t === 'false') return 'boolean';
+  if (t.startsWith('"')) return 'string';
+  return 'number';
+}
+
+function prettyJson(json: string): string {
+  try {
+    return JSON.stringify(JSON.parse(json), null, 2);
+  } catch {
+    return json;
+  }
+}
 
 function getDumpContent(entry: EntryDto): DumpEntryContent {
   return entry.content as DumpEntryContent;
@@ -119,6 +158,7 @@ export function DumpPage({ id: _id }: { id?: string } = {}) {
         const isUnnamed = !content.label;
         const isExpanded = expandedIds.has(entry.id);
         const callerDisplay = getCallerDisplay(content);
+        const kind = getJsonKind(content.json);
 
         return (
           <div>
@@ -132,6 +172,9 @@ export function DumpPage({ id: _id }: { id?: string } = {}) {
               summary={
                 <span className={styles.summaryRow}>
                   <span className={styles.caller}>{callerDisplay}</span>
+                  <span className={`${styles.kindBadge} ${KIND_CSS[kind]}`} data-testid="dump-kind-badge">
+                    {KIND_LABELS[kind]}
+                  </span>
                   <span className={styles.jsonPreview}>{getJsonPreview(content.json)}</span>
                 </span>
               }
@@ -143,7 +186,7 @@ export function DumpPage({ id: _id }: { id?: string } = {}) {
                     onClick={(e) => e.stopPropagation()}
                     aria-label="View parent request"
                   >
-                    &#8599;
+                    <Eye size={12} strokeWidth={2} />
                   </a>
                 ) : (
                   <span className={styles.background}>Background</span>
@@ -153,7 +196,13 @@ export function DumpPage({ id: _id }: { id?: string } = {}) {
             />
             {isExpanded && (
               <div className={styles.expandPanel} data-testid={`expand-${entry.id}`}>
-                <pre className={styles.jsonBlock}>{content.json}</pre>
+                <div className={styles.expandMeta}>
+                  <span className={styles.typeLabel}>{content.valueType}</span>
+                  {content.jsonTruncated && (
+                    <span className={styles.truncatedNote}>truncated</span>
+                  )}
+                </div>
+                <pre className={styles.jsonBlock}>{prettyJson(content.json)}</pre>
               </div>
             )}
           </div>

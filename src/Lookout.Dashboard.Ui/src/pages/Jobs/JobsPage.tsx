@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { listEntries } from '../../api/client';
 import type { EntryDto } from '../../api/types';
@@ -78,6 +79,11 @@ export function JobsPage() {
     return () => controller.abort();
   }, [retryCount]);
 
+  function handleKindChange(k: KindFilter) {
+    setKindFilter(k);
+    if (k === 'enqueues') setStatusFilter('all');
+  }
+
   const availableQueues = useMemo(() => {
     const queues = new Set<string>();
     for (const e of entries) {
@@ -93,7 +99,7 @@ export function JobsPage() {
       if (kindFilter === 'executions' && e.type !== 'job-execution') return false;
       if (kindFilter === 'enqueues' && e.type !== 'job-enqueue') return false;
 
-      if (statusFilter !== 'all' && e.type === 'job-execution') {
+      if (statusFilter !== 'all') {
         const state = (e.tags['job.state'] ?? '').toLowerCase();
         if (state !== statusFilter) return false;
       }
@@ -120,25 +126,27 @@ export function JobsPage() {
           <button
             key={k}
             className={`${styles.chip} ${kindFilter === k ? styles.chipActive : ''}`}
-            onClick={() => setKindFilter(k)}
+            onClick={() => handleKindChange(k)}
             aria-pressed={kindFilter === k}
           >
             {KIND_LABELS[k]}
           </button>
         ))}
       </div>
-      <div className={styles.filterGroup} role="group" aria-label="Status filter">
-        {(['all', 'processing', 'succeeded', 'failed'] as const).map((s) => (
-          <button
-            key={s}
-            className={`${styles.chip} ${statusFilter === s ? styles.chipActive : ''}`}
-            onClick={() => setStatusFilter(s)}
-            aria-pressed={statusFilter === s}
-          >
-            {STATUS_LABELS[s]}
-          </button>
-        ))}
-      </div>
+      {kindFilter !== 'enqueues' && (
+        <div className={styles.filterGroup} role="group" aria-label="Status filter">
+          {(['all', 'processing', 'succeeded', 'failed'] as const).map((s) => (
+            <button
+              key={s}
+              className={`${styles.chip} ${statusFilter === s ? styles.chipActive : ''}`}
+              onClick={() => setStatusFilter(s)}
+              aria-pressed={statusFilter === s}
+            >
+              {STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      )}
       {availableQueues.length > 0 && (
         <select
           className={styles.queueSelect}
@@ -199,7 +207,7 @@ export function JobsPage() {
             summary={
               <span className={styles.summaryRow}>
                 <span className={styles.jobLabel}>{jobLabel}</span>
-                {state && (
+                {isExecution && state && (
                   <span className={`${styles.stateBadge} ${statusChipClass(state)}`}>{state}</span>
                 )}
                 {queue && <span className={styles.queueLabel}>{queue}</span>}
@@ -214,7 +222,7 @@ export function JobsPage() {
                   onClick={(e) => e.stopPropagation()}
                   aria-label="View parent request"
                 >
-                  &#8599;
+                  <Eye size={12} strokeWidth={2} />
                 </a>
               ) : (
                 <span className={styles.background}>Background</span>

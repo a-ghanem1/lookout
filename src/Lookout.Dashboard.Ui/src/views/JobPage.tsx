@@ -150,8 +150,11 @@ function JobExecutionBody({ entry }: { entry: EntryDto }) {
               href={`#/requests/${encodeURIComponent(content.enqueueRequestId)}`}
               className={styles.metaLink}
               data-testid="enqueue-request-link"
+              title={content.enqueueRequestId}
             >
-              {content.enqueueRequestId}
+              {content.enqueueRequestId.length > 8
+                ? `${content.enqueueRequestId.slice(0, 8)}…`
+                : content.enqueueRequestId}
             </a>
           </div>
         ) : null}

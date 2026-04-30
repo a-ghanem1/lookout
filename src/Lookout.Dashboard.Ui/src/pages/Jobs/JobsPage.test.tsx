@@ -313,4 +313,49 @@ describe('JobsPage', () => {
     expect(capturedUrls.some((u) => u.includes('type=job-enqueue'))).toBe(true);
     expect(capturedUrls.some((u) => u.includes('type=job-execution'))).toBe(true);
   });
+
+  it('enqueue rows do not show a state badge', async () => {
+    const user = userEvent.setup();
+    render(<JobsPage />);
+
+    await waitFor(() => expect(screen.getAllByText('EXEC').length).toBeGreaterThan(0));
+
+    const kindGroup = screen.getByRole('group', { name: /kind filter/i });
+    await user.click(within(kindGroup).getByRole('button', { name: /^All$/i }));
+
+    await waitFor(() => expect(screen.getAllByText('ENQ').length).toBeGreaterThan(0));
+
+    // Enqueue entries have job.state='Enqueued' but we suppress the badge
+    expect(screen.queryByText('Enqueued')).not.toBeInTheDocument();
+  });
+
+  it('status filter group is hidden when kind is Enqueues', async () => {
+    const user = userEvent.setup();
+    render(<JobsPage />);
+
+    await waitFor(() => expect(screen.getAllByText('EXEC').length).toBeGreaterThan(0));
+
+    await user.click(screen.getByRole('button', { name: /^Enqueues$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('group', { name: /status filter/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('switching from Enqueues back to Executions shows status filter again', async () => {
+    const user = userEvent.setup();
+    render(<JobsPage />);
+
+    await waitFor(() => expect(screen.getAllByText('EXEC').length).toBeGreaterThan(0));
+
+    await user.click(screen.getByRole('button', { name: /^Enqueues$/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('group', { name: /status filter/i })).not.toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /^Executions$/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('group', { name: /status filter/i })).toBeInTheDocument();
+    });
+  });
 });

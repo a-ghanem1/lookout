@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { listEntries } from '../../api/client';
 import type { EntryDto, LogEntryContent } from '../../api/types';
@@ -189,7 +190,7 @@ export function LogsPage() {
                     onClick={(e) => e.stopPropagation()}
                     aria-label="View parent request"
                   >
-                    &#8599;
+                    <Eye size={12} strokeWidth={2} />
                   </a>
                 ) : (
                   <span className={styles.background}>Background</span>

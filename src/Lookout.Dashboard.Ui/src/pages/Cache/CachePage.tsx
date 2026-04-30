@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getCacheSummary, listEntries } from '../../api/client';
 import type { CacheEntryContent, CacheSummary, EntryDto } from '../../api/types';
@@ -205,7 +206,7 @@ export function CachePage({ id: _id }: { id?: string } = {}) {
                     onClick={(e) => e.stopPropagation()}
                     aria-label="View parent request"
                   >
-                    &#8599;
+                    <Eye size={12} strokeWidth={2} />
                   </a>
                 ) : (
                   <span className={styles.background}>Background</span>

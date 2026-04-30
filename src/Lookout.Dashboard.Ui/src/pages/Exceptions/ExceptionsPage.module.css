@@ -98,13 +98,15 @@
 }
 
 .reqLink {
-  color: var(--color-accent-fg);
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-fg-muted);
   text-decoration: none;
-  font-size: var(--text-xs-size);
+  transition: color var(--duration-hover) var(--ease-out);
 }
 
 .reqLink:hover {
-  text-decoration: underline;
+  color: var(--color-accent-fg);
 }
 
 .background {

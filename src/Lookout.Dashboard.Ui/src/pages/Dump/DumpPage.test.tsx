@@ -135,7 +135,7 @@ describe('DumpPage', () => {
     expect(capturedUrls[0]).toContain('type=dump');
   });
 
-  it('expands row to show full JSON when clicked', async () => {
+  it('expands row to show pretty-printed JSON when clicked', async () => {
     const user = userEvent.setup();
     render(<DumpPage />);
 
@@ -151,7 +151,38 @@ describe('DumpPage', () => {
       expect(screen.getByTestId('expand-id-1')).toBeInTheDocument();
     });
     const expandPanel = screen.getByTestId('expand-id-1');
-    expect(expandPanel.querySelector('pre')).toBeInTheDocument();
+    const pre = expandPanel.querySelector('pre');
+    expect(pre).toBeInTheDocument();
+    // pretty-printed JSON has "key": value spacing
+    expect(pre!.textContent).toContain('"id": 1');
+    expect(pre!.textContent).toContain('"total": 99.99');
+  });
+
+  it('shows C# valueType in expand panel', async () => {
+    const user = userEvent.setup();
+    render(<DumpPage />);
+
+    await waitFor(() => expect(screen.getByText('order')).toBeInTheDocument());
+
+    const rows = screen.getAllByRole('button');
+    const entryRow = rows.find((r) => r.textContent?.includes('order') && r.textContent?.includes('OrderService.cs'));
+    if (entryRow) await user.click(entryRow);
+
+    await waitFor(() => {
+      const panel = screen.getByTestId('expand-id-1');
+      expect(panel).toHaveTextContent('System.Int32');
+    });
+  });
+
+  it('renders type badge for object JSON', async () => {
+    render(<DumpPage />);
+
+    await waitFor(() => {
+      const badges = screen.getAllByTestId('dump-kind-badge');
+      expect(badges.length).toBeGreaterThan(0);
+      // both entries have object JSON starting with {
+      expect(badges[0]).toHaveTextContent('{ }');
+    });
   });
 
   it('filters by label when label search is filled', async () => {

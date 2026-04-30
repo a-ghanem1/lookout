@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight } from 'lucide-react';
+import { ArrowLeft, Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getEntry, listEntries } from '../../api/client';
 import type { EntryDto, ExceptionEntryContent, InnerException } from '../../api/types';
@@ -76,7 +76,7 @@ function ExceptionDetail({ id }: { id: string }) {
             href={`#/requests/${encodeURIComponent(entry.requestId)}`}
             className={styles.backLink}
           >
-            <ArrowUpRight size={14} strokeWidth={2} />
+            <Eye size={12} strokeWidth={2} />
             Parent request
           </a>
         )}
@@ -253,7 +253,7 @@ export function ExceptionsPage({ id }: { id?: string } = {}) {
                   onClick={(e) => e.stopPropagation()}
                   aria-label="View parent request"
                 >
-                  &#8599;
+                  <Eye size={12} strokeWidth={2} />
                 </a>
               ) : (
                 <span className={styles.background}>Background</span>

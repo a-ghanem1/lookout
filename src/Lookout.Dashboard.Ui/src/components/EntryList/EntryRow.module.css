@@ -65,6 +65,6 @@
 
 .requestLink {
   flex-shrink: 0;
-  font-size: var(--text-xs-size);
-  line-height: var(--text-xs-line);
+  display: inline-flex;
+  align-items: center;
 }
