@@ -52,7 +52,7 @@ public static class Lookout
         try
         {
             var maxBytes = DumpRecorder.MaxBytes;
-            var valueType = runtimeType?.FullName ?? runtimeType?.Name ?? "<null>";
+            var valueType = FormatValueTypeName(runtimeType);
 
             string json;
             var truncated = false;
@@ -107,5 +107,14 @@ public static class Lookout
         {
             // Never propagate from Dump
         }
+    }
+
+    private static string FormatValueTypeName(Type? type)
+    {
+        if (type is null) return "<null>";
+        // Compiler-generated anonymous types: <>f__AnonymousType0`N
+        if (type.Name.StartsWith("<>f__AnonymousType", StringComparison.Ordinal))
+            return "{ anonymous }";
+        return type.FullName ?? type.Name;
     }
 }

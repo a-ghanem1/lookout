@@ -258,7 +258,7 @@ app.MapGet("/orders/{id:int}", async (
         // Query N+3: product count used to build the summary payload
         var totalProducts = await db.Products.AsNoTracking().CountAsync();
         var summary = new { orderId = id, totalProducts, customerName = customer?.Name };
-        cache.Set(summaryCacheKey, summary, TimeSpan.FromMinutes(5));
+        cache.Set(summaryCacheKey, summary, TimeSpan.FromSeconds(30));
     }
 
     // Cache read 2 (hit): the summary is now cached — second Get returns it immediately
