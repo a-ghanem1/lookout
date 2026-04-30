@@ -4,6 +4,8 @@ import { listEntries } from '../../api/client';
 import type { EntryDto } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
+import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatDuration, formatRelative } from '../../format';
 import styles from './QueriesPage.module.css';
 
@@ -31,6 +33,7 @@ function durationColorClass(ms: number | undefined | null): string {
 }
 
 export function QueriesPage({ id: _id }: { id?: string } = {}) {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [source, setSource] = useState<Source>('all');
   const [minDuration, setMinDuration] = useState<DurationFilter>(0);
   const [search, setSearch] = useState('');
@@ -56,6 +59,7 @@ export function QueriesPage({ id: _id }: { id?: string } = {}) {
         sort: 'duration',
         minDurationMs: minDuration > 0 ? minDuration : undefined,
         q: debouncedSearch || undefined,
+        tags: activeTags.length > 0 ? activeTags : undefined,
         limit: 200,
       },
       controller.signal,
@@ -72,7 +76,7 @@ export function QueriesPage({ id: _id }: { id?: string } = {}) {
       });
 
     return () => controller.abort();
-  }, [source, minDuration, debouncedSearch, retryCount]);
+  }, [source, minDuration, debouncedSearch, activeTags, retryCount]);
 
   const filterSlot = (
     <div className={styles.filterBar}>
@@ -108,6 +112,7 @@ export function QueriesPage({ id: _id }: { id?: string } = {}) {
         onChange={(e) => setSearch(e.target.value)}
         aria-label="Search SQL"
       />
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
     </div>
   );
 

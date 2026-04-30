@@ -4,6 +4,8 @@ import { getEntry, listEntries } from '../../api/client';
 import type { EntryDto, ExceptionEntryContent, InnerException } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
+import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatRelative } from '../../format';
 import styles from './ExceptionsPage.module.css';
 
@@ -128,6 +130,7 @@ function ExceptionDetail({ id }: { id: string }) {
 }
 
 export function ExceptionsPage({ id }: { id?: string } = {}) {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [handledFilter, setHandledFilter] = useState<HandledFilter>('all');
   const [typeSearch, setTypeSearch] = useState('');
   const [messageSearch, setMessageSearch] = useState('');
@@ -154,7 +157,7 @@ export function ExceptionsPage({ id }: { id?: string } = {}) {
     setLoading(true);
     setError(undefined);
 
-    listEntries({ type: 'exception', limit: 200 }, controller.signal)
+    listEntries({ type: 'exception', tags: activeTags.length > 0 ? activeTags : undefined, limit: 200 }, controller.signal)
       .then((resp) => {
         setEntries(resp.entries);
         setLoading(false);
@@ -167,7 +170,7 @@ export function ExceptionsPage({ id }: { id?: string } = {}) {
       });
 
     return () => controller.abort();
-  }, [id, retryCount]);
+  }, [id, activeTags, retryCount]);
 
   const filtered = useMemo(() => {
     const lowerType = debouncedTypeSearch.toLowerCase();
@@ -214,6 +217,7 @@ export function ExceptionsPage({ id }: { id?: string } = {}) {
         onChange={(e) => setMessageSearch(e.target.value)}
         aria-label="Search exception message"
       />
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
     </div>
   );
 

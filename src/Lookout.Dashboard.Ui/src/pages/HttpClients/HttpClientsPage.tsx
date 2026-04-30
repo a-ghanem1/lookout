@@ -4,6 +4,8 @@ import { listEntries } from '../../api/client';
 import type { EntryDto } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
+import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatDuration, formatRelative } from '../../format';
 import styles from './HttpClientsPage.module.css';
 
@@ -46,6 +48,7 @@ function statusColorClass(code: number | null, hasError: boolean): string {
 }
 
 export function HttpClientsPage({ id: _id }: { id?: string } = {}) {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [statusClass, setStatusClass] = useState<StatusClass>('all');
   const [method, setMethod] = useState('All');
   const [host, setHost] = useState('');
@@ -72,6 +75,7 @@ export function HttpClientsPage({ id: _id }: { id?: string } = {}) {
         method: method !== 'All' ? method : undefined,
         host: debouncedHost || undefined,
         errorsOnly: statusClass === 'errors' ? true : undefined,
+        tags: activeTags.length > 0 ? activeTags : undefined,
         limit: 200,
       },
       controller.signal,
@@ -88,7 +92,7 @@ export function HttpClientsPage({ id: _id }: { id?: string } = {}) {
       });
 
     return () => controller.abort();
-  }, [statusClass, method, debouncedHost, retryCount]);
+  }, [statusClass, method, debouncedHost, activeTags, retryCount]);
 
   const filterSlot = (
     <div className={styles.filterBar}>
@@ -124,6 +128,7 @@ export function HttpClientsPage({ id: _id }: { id?: string } = {}) {
         onChange={(e) => setHost(e.target.value)}
         aria-label="Filter by host"
       />
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
     </div>
   );
 

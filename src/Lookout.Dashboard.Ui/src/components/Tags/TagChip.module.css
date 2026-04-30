@@ -1,0 +1,94 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  font-size: var(--text-2xs-size);
+  line-height: 1;
+  background: var(--color-bg-subtle);
+}
+
+.chipActive {
+  border-color: var(--color-accent-border);
+  background: var(--color-bg-selected);
+}
+
+.chipLabel {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs-size);
+  color: var(--color-fg-muted);
+  transition: color var(--duration-hover) var(--ease-out);
+}
+
+.chipLabel:hover {
+  color: var(--color-accent-fg);
+}
+
+.chipKey {
+  color: var(--color-fg-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.chipSep {
+  color: var(--color-fg-subtle);
+  padding: 0 1px;
+}
+
+.chipValue {
+  color: var(--color-fg-default);
+}
+
+.chipActive .chipKey,
+.chipActive .chipValue {
+  color: var(--color-accent-fg);
+}
+
+.chipRemove {
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--color-border-default);
+  cursor: pointer;
+  color: var(--color-fg-subtle);
+  font-size: var(--text-xs-size);
+  line-height: 1;
+  transition: color var(--duration-hover) var(--ease-out),
+    background var(--duration-hover) var(--ease-out);
+}
+
+.chipRemove:hover {
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+}
+
+.activeBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+}
+
+.clearAll {
+  font-size: var(--text-2xs-size);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-fg-subtle);
+  cursor: pointer;
+  transition: color var(--duration-hover) var(--ease-out);
+}
+
+.clearAll:hover {
+  color: var(--color-error-fg);
+}
