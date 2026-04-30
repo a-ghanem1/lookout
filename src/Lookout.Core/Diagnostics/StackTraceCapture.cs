@@ -129,7 +129,7 @@ public static class StackTraceCapture
     private static bool IsDuplicateFrame(List<EfStackFrame> result, EfStackFrame candidate)
     {
         if (result.Count == 0) return false;
-        var prev = result[^1];
+        var prev = result[result.Count - 1];
         return prev.Method == candidate.Method && candidate.File is null;
     }
 
