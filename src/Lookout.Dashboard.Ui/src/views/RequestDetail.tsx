@@ -298,12 +298,9 @@ function ExceptionRow({ entry }: { entry: EntryDto }) {
             <div className={styles.metaLabel}>Message</div>
             <div className={styles.metaValue}>{content?.message}</div>
           </div>
-          {content?.stackTrace ? (
-            <div>
-              <div className={styles.metaLabel}>Stack trace</div>
-              <pre className={styles.code} data-testid="exception-stack">
-                {content.stackTrace}
-              </pre>
+          {content?.stack && content.stack.length > 0 ? (
+            <div data-testid="exception-stack">
+              <EfStack stack={content.stack} />
             </div>
           ) : null}
           {content?.innerExceptions && content.innerExceptions.length > 0 ? (

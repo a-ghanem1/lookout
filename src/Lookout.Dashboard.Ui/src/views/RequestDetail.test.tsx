@@ -541,10 +541,11 @@ function exceptionEntry(
   const content: ExceptionEntryContent = {
     exceptionType: 'System.InvalidOperationException',
     message: 'Something went wrong',
-    stackTrace: '   at WebApp.OrdersController.Get(Int32 id) in OrdersController.cs:line 42',
+    stack: [{ method: 'WebApp.OrdersController.GetOrder', file: 'OrdersController.cs', line: 42 }],
     innerExceptions: [],
     source: 'WebApp',
     hResult: -2146233079,
+    handled,
     ...overrides,
   };
   return {

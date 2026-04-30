@@ -92,10 +92,11 @@ export interface InnerException {
 export interface ExceptionEntryContent {
   exceptionType: string;
   message: string;
-  stackTrace: string;
+  stack: EfStackFrame[];
   innerExceptions: InnerException[];
   source?: string | null;
   hResult?: number | null;
+  handled: boolean;
 }
 
 export interface LogEventId {
