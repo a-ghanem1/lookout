@@ -148,6 +148,23 @@ public sealed class LookoutHangfireServerFilterTests
     }
 
     [Fact]
+    public void OnPerformed_UnwrapsJobPerformanceException_WhenFailed()
+    {
+        var filter = BuildFilter(out var recorded);
+        var inner = new InvalidOperationException("SMTP refused");
+        var wrapper = new JobPerformanceException("job failed", inner);
+        var (performing, performed) = MakeServerContexts(
+            typeof(SampleJob), nameof(SampleJob.Execute), exception: wrapper);
+
+        filter.OnPerforming(performing);
+        filter.OnPerformed(performed);
+
+        var content = Deserialize(recorded[0]);
+        content.ErrorType.Should().Contain(nameof(InvalidOperationException));
+        content.ErrorMessage.Should().Be("SMTP refused");
+    }
+
+    [Fact]
     public void OnPerformed_SetsEnqueueRequestId_FromJobParameter()
     {
         var filter = BuildFilter(out var recorded);

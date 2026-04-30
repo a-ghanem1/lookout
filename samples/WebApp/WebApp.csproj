@@ -5,12 +5,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.14" />
+    <PackageReference Include="Hangfire.InMemory" Version="1.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Lookout.AspNetCore\Lookout.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\Lookout.EntityFrameworkCore\Lookout.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Lookout.Hangfire\Lookout.Hangfire.csproj" />
     <ProjectReference Include="..\..\src\Lookout.Storage.Sqlite\Lookout.Storage.Sqlite.csproj" />
   </ItemGroup>
 

@@ -1,5 +1,8 @@
+using Hangfire;
+using Hangfire.InMemory;
 using Lookout.AspNetCore;
 using Lookout.EntityFrameworkCore;
+using Lookout.Hangfire;
 using static Lookout.Core.Lookout;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +22,10 @@ builder.Services.AddLookout(o =>
     o.CaptureResponseBody = true;
 });
 builder.Services.AddEntityFrameworkCore();
+
+builder.Services.AddHangfire(cfg => cfg.UseInMemoryStorage());
+builder.Services.AddHangfireServer();
+builder.Services.AddLookoutHangfire();
 
 builder.Services.AddDbContext<SampleDbContext>((sp, opts) =>
 {
@@ -303,6 +310,20 @@ app.MapGet("/orders/{id:int}", async (
 
 app.MapLookout();
 
+// ── M8.5 — Hangfire job capture demo ─────────────────────────────────────────
+
+// Enqueues a SendEmailJob and returns the Hangfire job id.
+// The enqueue is captured as a job-enqueue entry correlated to this HTTP request.
+// After the in-process server picks it up, a job-execution entry is written.
+//
+// Happy path:   POST /jobs/send-email          → Succeeded execution entry
+// Failure path: POST /jobs/send-email?fail=true → Failed execution entry
+app.MapPost("/jobs/send-email", (IBackgroundJobClient jobs, bool fail = false) =>
+{
+    var jobId = jobs.Enqueue<SendEmailJob>(j => j.Execute("alice@example.com", "Hello from Lookout", fail));
+    return Results.Ok(new { jobId });
+});
+
 app.Run();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -377,6 +398,19 @@ public sealed class OrderItem
     public int OrderId { get; set; }
     public int ProductId { get; set; }
     public int Quantity { get; set; }
+}
+
+/// <summary>Demo job — simulates sending an email. Pass fail=true to exercise the Failed path.</summary>
+public sealed class SendEmailJob(ILogger<SendEmailJob> logger)
+{
+    public Task Execute(string to, string subject, bool fail)
+    {
+        if (fail)
+            throw new InvalidOperationException($"SMTP connection refused while sending to {to}");
+
+        logger.LogInformation("Email sent to {To} with subject {Subject}", to, subject);
+        return Task.CompletedTask;
+    }
 }
 
 static class SampleSeed

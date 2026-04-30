@@ -81,8 +81,9 @@ internal sealed class LookoutHangfireServerFilter : IServerFilter
             string? errorMessage = null;
             if (!succeeded && filterContext.Exception is not null)
             {
-                errorType = filterContext.Exception.GetType().FullName;
-                errorMessage = filterContext.Exception.Message;
+                var ex = filterContext.Exception.InnerException ?? filterContext.Exception;
+                errorType = ex.GetType().FullName;
+                errorMessage = ex.Message;
             }
 
             var fullTypeName = job.Type.FullName;
