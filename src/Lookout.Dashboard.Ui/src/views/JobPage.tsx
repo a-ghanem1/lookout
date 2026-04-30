@@ -10,8 +10,8 @@ export function JobPage({ id }: { id: string }) {
   if (state.loading && !state.data) {
     return (
       <div className={styles.root}>
-        <a className={styles.back} href="#/">
-          ← Back to requests
+        <a className={styles.back} href="#/jobs" data-testid="back-to-jobs">
+          ← Back to Jobs
         </a>
         <div className={styles.caption}>Loading…</div>
       </div>
@@ -21,8 +21,8 @@ export function JobPage({ id }: { id: string }) {
   if (state.error || !state.data) {
     return (
       <div className={styles.root}>
-        <a className={styles.back} href="#/">
-          ← Back to requests
+        <a className={styles.back} href="#/jobs" data-testid="back-to-jobs">
+          ← Back to Jobs
         </a>
         <div className={styles.notFound} data-testid="job-not-found">
           Job entry not found.
@@ -44,8 +44,8 @@ export function JobBody({ entry }: { entry: EntryDto }) {
 
   return (
     <div className={styles.root}>
-      <a className={styles.back} href="#/">
-        ← Back to requests
+      <a className={styles.back} href="#/jobs" data-testid="back-to-jobs">
+        ← Back to Jobs
       </a>
       <div className={styles.notFound} data-testid="job-not-found">
         Job entry not found.
@@ -59,8 +59,8 @@ function JobEnqueueBody({ entry }: { entry: EntryDto }) {
 
   return (
     <div className={styles.root} data-testid="job-enqueue-detail">
-      <a className={styles.back} href="#/">
-        ← Back to requests
+      <a className={styles.back} href="#/jobs" data-testid="back-to-jobs">
+        ← Back to Jobs
       </a>
       <header className={styles.header}>
         <span className={`${styles.typeBadge} ${styles.typeBadgeEnq}`}>ENQ</span>
@@ -123,8 +123,8 @@ function JobExecutionBody({ entry }: { entry: EntryDto }) {
 
   return (
     <div className={styles.root} data-testid="job-execution-detail">
-      <a className={styles.back} href="#/">
-        ← Back to requests
+      <a className={styles.back} href="#/jobs" data-testid="back-to-jobs">
+        ← Back to Jobs
       </a>
       <header className={styles.header}>
         <span className={`${styles.typeBadge} ${styles.typeBadgeExec}`}>EXEC</span>

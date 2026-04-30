@@ -35,6 +35,18 @@
   border-color: var(--color-accent-bg);
 }
 
+.queueSelect {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  font-family: var(--font-sans);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-canvas);
+  color: var(--color-fg-default);
+  cursor: pointer;
+}
+
 .searchInput {
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-md);
@@ -52,7 +64,7 @@
   border-color: var(--color-accent-border);
 }
 
-.sourceBadge {
+.kindBadge {
   display: inline-block;
   padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
@@ -63,54 +75,91 @@
   white-space: nowrap;
 }
 
-.badgeEf {
+.kindExec {
   background: var(--color-info-bg-subtle);
   color: var(--color-info-fg);
   border: 1px solid var(--color-info-border);
 }
 
-.badgeSql {
-  background: var(--color-success-bg-subtle);
-  color: var(--color-success-fg);
-  border: 1px solid var(--color-success-border);
+.kindEnq {
+  background: var(--color-special-bg-subtle);
+  color: var(--color-special-fg);
+  border: 1px solid var(--color-special-border);
 }
 
-.sqlPreview {
+.summaryRow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.jobLabel {
   font-family: var(--font-mono);
   font-size: var(--text-sm-size);
-  line-height: var(--text-sm-line);
-  white-space: nowrap;
+  color: var(--color-fg-default);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.durationNeutral {
-  font-family: var(--font-mono);
-  color: var(--color-fg-muted);
+.stateBadge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs-size);
+  line-height: var(--space-5);
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  border: 1px solid transparent;
 }
 
-.durationWarn {
-  font-family: var(--font-mono);
-  color: var(--color-warn-fg);
+.stateSucceeded {
+  background: var(--color-success-bg-subtle);
+  color: var(--color-success-fg);
+  border-color: var(--color-success-border);
 }
 
-.durationError {
-  font-family: var(--font-mono);
+.stateFailed {
+  background: var(--color-error-bg-subtle);
   color: var(--color-error-fg);
+  border-color: var(--color-error-border);
+}
+
+.stateProcessing {
+  background: var(--color-info-bg-subtle);
+  color: var(--color-info-fg);
+  border-color: var(--color-info-border);
+}
+
+.stateNeutral {
+  background: var(--color-bg-muted);
+  color: var(--color-fg-muted);
+  border-color: var(--color-border-muted);
+}
+
+.queueLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  color: var(--color-fg-subtle);
+}
+
+.durationText {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  color: var(--color-fg-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .reqLink {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-fg-muted);
+  color: var(--color-accent-fg);
   text-decoration: none;
   font-size: var(--text-xs-size);
-  transition: color var(--duration-hover) var(--ease-out);
 }
 
 .reqLink:hover {
-  color: var(--color-accent-fg);
+  text-decoration: underline;
 }
 
 .background {

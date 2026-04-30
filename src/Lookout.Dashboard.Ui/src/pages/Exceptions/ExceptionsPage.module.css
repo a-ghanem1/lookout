@@ -70,9 +70,9 @@
 }
 
 .handledFalse {
-  background: var(--color-danger-bg-subtle);
-  color: var(--color-danger-fg);
-  border: 1px solid var(--color-danger-border);
+  background: var(--color-error-bg-subtle);
+  color: var(--color-error-fg);
+  border: 1px solid var(--color-error-border);
 }
 
 .summaryRow {
@@ -129,13 +129,17 @@
 }
 
 .backLink {
-  color: var(--color-accent-fg);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-fg-muted);
   text-decoration: none;
   font-size: var(--text-sm-size);
+  transition: color var(--duration-hover) var(--ease-out);
 }
 
 .backLink:hover {
-  text-decoration: underline;
+  color: var(--color-accent-fg);
 }
 
 .detailLoading {
@@ -144,7 +148,7 @@
 }
 
 .detailError {
-  color: var(--color-danger-fg);
+  color: var(--color-error-fg);
   font-size: var(--text-sm-size);
 }
 

@@ -82,9 +82,9 @@
 }
 
 .levelDanger {
-  background: var(--color-danger-bg-subtle);
-  color: var(--color-danger-fg);
-  border: 1px solid var(--color-danger-border);
+  background: var(--color-error-bg-subtle);
+  color: var(--color-error-fg);
+  border: 1px solid var(--color-error-border);
 }
 
 .summaryRow {

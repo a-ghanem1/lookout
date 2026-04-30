@@ -1,3 +1,4 @@
+import { ArrowUpRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { listEntries } from '../../api/client';
 import type { EntryDto } from '../../api/types';
@@ -145,7 +146,7 @@ export function QueriesPage({ id: _id }: { id?: string } = {}) {
                 onClick={(e) => e.stopPropagation()}
                 aria-label="View parent request"
               >
-                ↗
+                <ArrowUpRight size={14} strokeWidth={2} />
               </a>
             ) : (
               <span className={styles.background}>Background</span>

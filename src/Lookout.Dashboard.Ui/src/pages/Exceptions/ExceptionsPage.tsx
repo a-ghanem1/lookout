@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowUpRight } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getEntry, listEntries } from '../../api/client';
 import type { EntryDto, ExceptionEntryContent, InnerException } from '../../api/types';
@@ -49,7 +50,7 @@ function ExceptionDetail({ id }: { id: string }) {
   if (loading) {
     return (
       <div className={styles.detailWrap}>
-        <a href="#/exceptions" className={styles.backLink}>← Exceptions</a>
+        <a href="#/exceptions" className={styles.backLink}><ArrowLeft size={14} strokeWidth={2} />Exceptions</a>
         <span className={styles.detailLoading}>Loading…</span>
       </div>
     );
@@ -58,7 +59,7 @@ function ExceptionDetail({ id }: { id: string }) {
   if (error || !entry) {
     return (
       <div className={styles.detailWrap}>
-        <a href="#/exceptions" className={styles.backLink}>← Exceptions</a>
+        <a href="#/exceptions" className={styles.backLink}><ArrowLeft size={14} strokeWidth={2} />Exceptions</a>
         <p className={styles.detailError}>{error?.message ?? 'Entry not found'}</p>
       </div>
     );
@@ -69,13 +70,14 @@ function ExceptionDetail({ id }: { id: string }) {
   return (
     <div className={styles.detailWrap}>
       <div className={styles.detailNavRow}>
-        <a href="#/exceptions" className={styles.backLink}>← Exceptions</a>
+        <a href="#/exceptions" className={styles.backLink}><ArrowLeft size={14} strokeWidth={2} />Exceptions</a>
         {entry.requestId && (
           <a
             href={`#/requests/${encodeURIComponent(entry.requestId)}`}
             className={styles.backLink}
           >
-            ↗ Parent request
+            <ArrowUpRight size={14} strokeWidth={2} />
+            Parent request
           </a>
         )}
       </div>

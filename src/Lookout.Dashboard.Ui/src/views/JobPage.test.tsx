@@ -170,4 +170,20 @@ describe('JobPage — execution entry', () => {
     render(<JobBody entry={jobExecutionEntry('Succeeded', { enqueueRequestId: null })} />);
     expect(screen.queryByTestId('enqueue-request-link')).not.toBeInTheDocument();
   });
+
+  it('renders back-to-jobs link on execution entry', () => {
+    render(<JobBody entry={jobExecutionEntry()} />);
+    const link = screen.getByTestId('back-to-jobs');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '#/jobs');
+  });
+});
+
+describe('JobPage — enqueue back-to-jobs link', () => {
+  it('renders back-to-jobs link on enqueue entry', () => {
+    render(<JobBody entry={jobEnqueueEntry()} />);
+    const link = screen.getByTestId('back-to-jobs');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '#/jobs');
+  });
 });
