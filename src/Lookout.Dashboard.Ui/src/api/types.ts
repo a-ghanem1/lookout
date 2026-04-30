@@ -84,6 +84,46 @@ export interface CacheEntryContent {
   valueBytes?: number | null;
 }
 
+export interface InnerException {
+  type: string;
+  message: string;
+}
+
+export interface ExceptionEntryContent {
+  exceptionType: string;
+  message: string;
+  stack: EfStackFrame[];
+  innerExceptions: InnerException[];
+  source?: string | null;
+  hResult?: number | null;
+  handled: boolean;
+}
+
+export interface LogEventId {
+  id: number;
+  name?: string | null;
+}
+
+export interface LogEntryContent {
+  level: string;
+  category: string;
+  message: string;
+  eventId?: LogEventId | null;
+  scopes: string[];
+  exceptionType?: string | null;
+  exceptionMessage?: string | null;
+}
+
+export interface DumpEntryContent {
+  label?: string | null;
+  json: string;
+  jsonTruncated: boolean;
+  valueType: string;
+  callerFile: string;
+  callerLine: number;
+  callerMember: string;
+}
+
 export interface EntryListResponse {
   entries: EntryDto[];
   nextBefore?: number | null;

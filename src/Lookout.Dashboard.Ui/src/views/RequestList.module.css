@@ -207,3 +207,58 @@
   background: var(--color-success-bg-subtle);
   white-space: nowrap;
 }
+
+.errorTagBadge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-fg);
+  background: var(--color-error-bg-subtle);
+  white-space: nowrap;
+}
+
+.warnTagBadge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-warn-border);
+  color: var(--color-warn-fg);
+  background: var(--color-warn-bg-subtle);
+  white-space: nowrap;
+}
+
+.logCountBadge {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+  white-space: nowrap;
+}
+
+.dumpCountBadge {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs-size);
+  line-height: var(--text-2xs-line);
+  font-weight: var(--font-weight-medium);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-canvas);
+  font-style: italic;
+  white-space: nowrap;
+}

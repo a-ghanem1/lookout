@@ -148,6 +148,12 @@ function RequestRow({ entry }: { entry: EntryDto }) {
   const httpOutCount = httpOutCountStr !== undefined ? Number.parseInt(httpOutCountStr, 10) : null;
   const cacheCountStr = entry.tags['cache.count'];
   const cacheCount = cacheCountStr !== undefined ? Number.parseInt(cacheCountStr, 10) : null;
+  const hasException = entry.tags['exception'] === 'true';
+  const maxLogLevel = entry.tags['log.maxLevel'];
+  const logCountStr = entry.tags['log.count'];
+  const logCount = logCountStr !== undefined ? Number.parseInt(logCountStr, 10) : null;
+  const dumpCountStr = entry.tags['dump.count'];
+  const dumpCount = dumpCountStr !== undefined ? Number.parseInt(dumpCountStr, 10) : null;
 
   const go = () => {
     const target = entry.requestId ?? entry.id;
@@ -197,6 +203,30 @@ function RequestRow({ entry }: { entry: EntryDto }) {
           {cacheCount !== null && cacheCount > 0 ? (
             <span className={styles.cacheCountBadge} data-testid="cache-count-badge">
               cache: {cacheCount}
+            </span>
+          ) : null}
+          {hasException ? (
+            <span className={styles.errorTagBadge} data-testid="exception-badge">
+              error
+            </span>
+          ) : null}
+          {maxLogLevel === 'Error' || maxLogLevel === 'Critical' ? (
+            <span className={styles.errorTagBadge} data-testid="log-error-badge">
+              log: {maxLogLevel.toLowerCase()}
+            </span>
+          ) : maxLogLevel === 'Warning' ? (
+            <span className={styles.warnTagBadge} data-testid="log-warn-badge">
+              log: warn
+            </span>
+          ) : null}
+          {logCount !== null && logCount > 0 ? (
+            <span className={styles.logCountBadge} data-testid="log-count-badge">
+              log: {logCount}
+            </span>
+          ) : null}
+          {dumpCount !== null && dumpCount > 0 ? (
+            <span className={styles.dumpCountBadge} data-testid="dump-count-badge">
+              dump: {dumpCount}
             </span>
           ) : null}
         </div>

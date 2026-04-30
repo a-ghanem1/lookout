@@ -231,4 +231,123 @@ describe('RequestList', () => {
     expect(screen.getByTestId('http-out-count-badge')).toHaveTextContent('http: 1');
     expect(screen.getByTestId('cache-count-badge')).toHaveTextContent('cache: 4');
   });
+
+  it('shows exception badge when exception=true tag present', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ exception: 'true' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('exception-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('exception-badge')).toHaveTextContent('error');
+  });
+
+  it('does not show exception badge when exception tag is absent', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('exception-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows warn badge when log.maxLevel=Warning', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'log.maxLevel': 'Warning' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('log-warn-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('log-warn-badge')).toHaveTextContent('log: warn');
+  });
+
+  it('shows error badge when log.maxLevel=Error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'log.maxLevel': 'Error' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('log-error-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('log-error-badge')).toHaveTextContent('log: error');
+  });
+
+  it('does not show warn or error log badge when log.maxLevel is absent', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('log-warn-badge')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('log-error-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows log count badge when log.count tag is present and > 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'log.count': '3' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('log-count-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('log-count-badge')).toHaveTextContent('log: 3');
+  });
+
+  it('does not show log count badge when log.count is 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'log.count': '0' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('log-count-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows dump count badge when dump.count tag is present and > 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse({ 'dump.count': '2' })), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+    render(<RequestList />);
+    await waitFor(() => {
+      expect(screen.getByTestId('dump-count-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('dump-count-badge')).toHaveTextContent('dump: 2');
+  });
+
+  it('does not show dump count badge when dump.count is absent', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.queryByTestId('dump-count-badge')).not.toBeInTheDocument();
+  });
 });

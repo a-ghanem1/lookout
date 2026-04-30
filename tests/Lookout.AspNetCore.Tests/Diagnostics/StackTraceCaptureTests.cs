@@ -91,4 +91,88 @@ public sealed class StackTraceCaptureTests
 
         result.Should().NotBeNull();
     }
+
+    // ── Async state machine name unwrapping ───────────────────────────────────
+
+    [Fact]
+    public async Task CaptureFromException_NamedAsyncMethod_DoesNotContainMoveNext()
+    {
+        Exception captured = null!;
+        try { await ThrowFromNamedAsyncMethod(); }
+        catch (Exception ex) { captured = ex; }
+
+        var frames = StackTraceCapture.CaptureFromException(captured, 10);
+
+        frames.Should().NotBeEmpty();
+        frames.Should().NotContain(
+            f => f.Method.EndsWith(".MoveNext"),
+            because: "MoveNext from async state machines should be unwrapped to the real method name");
+    }
+
+    [Fact]
+    public async Task CaptureFromException_NamedAsyncMethod_ShowsCleanMethodName()
+    {
+        Exception captured = null!;
+        try { await ThrowFromNamedAsyncMethod(); }
+        catch (Exception ex) { captured = ex; }
+
+        var frames = StackTraceCapture.CaptureFromException(captured, 10);
+
+        frames.Should().Contain(
+            f => f.Method.Contains(nameof(ThrowFromNamedAsyncMethod)),
+            because: "the real async method name should appear in the cleaned frame");
+    }
+
+    [Fact]
+    public async Task CaptureFromException_AsyncMethod_DoesNotContainStateMachineTypeNoise()
+    {
+        Exception captured = null!;
+        try { await ThrowFromNamedAsyncMethod(); }
+        catch (Exception ex) { captured = ex; }
+
+        var frames = StackTraceCapture.CaptureFromException(captured, 10);
+
+        frames.Should().NotContain(
+            f => f.Method.Contains(">d__"),
+            because: "compiler-generated state machine type suffixes should be stripped");
+    }
+
+    // ── Lambda method rendering ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task CaptureFromException_LambdaMethod_RendersAsLambdaLabel()
+    {
+        Exception captured = null!;
+        Func<Task> thrower = async () =>
+        {
+            await Task.Yield();
+            throw new InvalidOperationException("lambda test");
+        };
+        try { await thrower(); }
+        catch (Exception ex) { captured = ex; }
+
+        var frames = StackTraceCapture.CaptureFromException(captured, 10);
+
+        frames.Should().NotContain(
+            f => f.Method.Contains(">b__"),
+            because: "compiler-generated lambda method suffixes should be replaced with <lambda>");
+    }
+
+    [Fact]
+    public void Capture_DoesNotIncludeDynamicMethodFrames()
+    {
+        // DynamicMethod frames have no DeclaringType and should be filtered as noise.
+        // We verify indirectly: the live stack never contains a frame named "lambda_method<N>".
+        var frames = StackTraceCapture.Capture(0, 50);
+
+        frames.Should().NotContain(
+            f => f.Method.StartsWith("lambda_method"),
+            because: "runtime DynamicMethod dispatch frames are framework noise");
+    }
+
+    private static async Task ThrowFromNamedAsyncMethod()
+    {
+        await Task.Yield(); // force a real async hop so the state machine is used
+        throw new InvalidOperationException("state machine test");
+    }
 }

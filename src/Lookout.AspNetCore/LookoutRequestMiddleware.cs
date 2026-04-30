@@ -95,6 +95,8 @@ internal sealed class LookoutRequestMiddleware
         // Create per-request N+1 detection scope. DB entries (EF + ADO) are buffered here
         // and flushed — with N+1 tags — after the request completes.
         using var n1Scope = N1RequestScope.Begin(_options.Ef);
+        if (_options.Dump.Capture)
+            DumpRecorder.Set(_recorder, _options.Dump.MaxBytes);
 
         var startTimestamp = Stopwatch.GetTimestamp();
         try
@@ -120,12 +122,16 @@ internal sealed class LookoutRequestMiddleware
                     context.Request.Method, path);
             }
 
+            DumpRecorder.Clear();
+
             try
             {
                 Capture(
                     context, path, durationMs, requestId, requestHeaders,
                     requestContentType, requestBody, requestBodyTruncated,
-                    responseCapture, n1Scope.DbCount, n1Scope.HttpOutCount, n1Scope.CacheCount, n1Groups);
+                    responseCapture, n1Scope.DbCount, n1Scope.HttpOutCount, n1Scope.CacheCount,
+                    n1Scope.ExceptionCount, n1Scope.LogCount, n1Scope.MaxLogLevel,
+                    n1Scope.DumpCount, n1Groups);
             }
             catch (Exception ex)
             {
@@ -165,6 +171,10 @@ internal sealed class LookoutRequestMiddleware
         int dbCount,
         int httpOutCount,
         int cacheCount,
+        int exceptionCount,
+        int logCount,
+        LogLevel? maxLogLevel,
+        int dumpCount,
         IReadOnlyList<N1Group> n1Groups)
     {
         var req = context.Request;
@@ -216,6 +226,19 @@ internal sealed class LookoutRequestMiddleware
             tags["n1.detected"] = "true";
             tags["n1.groups"] = n1Groups.Count.ToString(CultureInfo.InvariantCulture);
         }
+        if (exceptionCount > 0)
+        {
+            tags["exception.count"] = exceptionCount.ToString(CultureInfo.InvariantCulture);
+            tags["exception"] = "true";
+        }
+        if (logCount > 0)
+        {
+            tags["log.count"] = logCount.ToString(CultureInfo.InvariantCulture);
+            if (maxLogLevel.HasValue && maxLogLevel.Value > LogLevel.Information)
+                tags["log.maxLevel"] = maxLogLevel.Value.ToString();
+        }
+        if (dumpCount > 0)
+            tags["dump.count"] = dumpCount.ToString(CultureInfo.InvariantCulture);
 
         var entry = new LookoutEntry(
             Id: Guid.NewGuid(),

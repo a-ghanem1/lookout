@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { getRequestEntries } from '../api/client';
 import type {
   CacheEntryContent,
+  DumpEntryContent,
   EfEntryContent,
   EfStackFrame,
   EntryDto,
+  ExceptionEntryContent,
   HttpEntryContent,
+  LogEntryContent,
   OutboundHttpEntryContent,
   SqlEntryContent,
 } from '../api/types';
@@ -72,7 +75,23 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
   const cacheEntries = entries
     .filter((e) => e.type === 'cache')
     .sort((a, b) => a.timestamp - b.timestamp);
-  const hasSidePanel = hasDbEntries || httpOutEntries.length > 0 || cacheEntries.length > 0;
+  const exceptionEntries = entries
+    .filter((e) => e.type === 'exception')
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const logEntries = entries
+    .filter((e) => e.type === 'log')
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const dumpEntries = entries
+    .filter((e) => e.type === 'dump')
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const hasSidePanel =
+    hasDbEntries ||
+    httpOutEntries.length > 0 ||
+    cacheEntries.length > 0 ||
+    exceptionEntries.length > 0 ||
+    logEntries.length > 0 ||
+    dumpEntries.length > 0;
 
   return (
     <div className={styles.root} data-testid="request-detail">
@@ -107,9 +126,12 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
         </div>
         {hasSidePanel && (
           <div className={styles.sideCol}>
+            <ExceptionSection entries={exceptionEntries} />
             {hasDbEntries && <DbPanel allEntries={entries} />}
             <OutboundHttpSection entries={httpOutEntries} />
             <CacheSection entries={cacheEntries} />
+            <LogSection entries={logEntries} />
+            <DumpSection entries={dumpEntries} />
           </div>
         )}
       </div>
@@ -215,6 +237,88 @@ function BodySection({ title, body }: { title: string; body: string | undefined 
         )}
       </div>
     </details>
+  );
+}
+
+// ─── Exception section ────────────────────────────────────────────────────────
+
+function ExceptionSection({ entries }: { entries: EntryDto[] }) {
+  if (entries.length === 0) return null;
+
+  return (
+    <details className={styles.section} open data-testid="exception-section">
+      <summary className={styles.sectionSummary}>Exception</summary>
+      <div className={styles.sectionBody}>
+        <ul className={styles.efList}>
+          {entries.map((e) => (
+            <ExceptionRow key={e.id} entry={e} />
+          ))}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
+function ExceptionRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as ExceptionEntryContent;
+  const handled = entry.tags['exception.handled'];
+
+  return (
+    <li className={styles.efRow} data-testid="exception-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span
+          className={`${styles.dbSourceBadge} ${styles.excSourceBadge}`}
+          data-testid="exc-source-badge"
+        >
+          EXC
+        </span>
+        <span className={`${styles.efPreview} ${styles.exceptionTypeName}`} data-testid="exception-type">
+          {content?.exceptionType ?? '—'}
+        </span>
+        <span className={styles.efMeta}>
+          {handled !== undefined ? (
+            <span
+              className={handled === 'true' ? styles.handledChip : styles.unhandledChip}
+              data-testid={handled === 'true' ? 'handled-chip' : 'unhandled-chip'}
+            >
+              {handled === 'true' ? 'handled' : 'unhandled'}
+            </span>
+          ) : null}
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="exception-row-body">
+          <div>
+            <div className={styles.metaLabel}>Message</div>
+            <div className={styles.metaValue}>{content?.message}</div>
+          </div>
+          {content?.stack && content.stack.length > 0 ? (
+            <div data-testid="exception-stack">
+              <EfStack stack={content.stack} />
+            </div>
+          ) : null}
+          {content?.innerExceptions && content.innerExceptions.length > 0 ? (
+            <div data-testid="inner-exceptions">
+              <div className={styles.metaLabel}>Inner exceptions</div>
+              <ul className={styles.innerExceptionList}>
+                {content.innerExceptions.map((inner, i) => (
+                  <li key={i} className={styles.innerExceptionItem}>
+                    <span className={styles.exceptionTypeName}>{inner.type}</span>
+                    <span className={styles.caption}> — {inner.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -616,6 +720,253 @@ function CacheRow({ entry }: { entry: EntryDto }) {
             <div>
               <div className={styles.metaLabel}>Provider</div>
               <div className={styles.metaValue}>{entry.tags['cache.provider']}</div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+// ─── Logs section ─────────────────────────────────────────────────────────────
+
+type LogFilter = 'all' | 'warn+' | 'error+';
+
+const LOG_LEVEL_ORDER: Record<string, number> = {
+  Trace: 0,
+  Debug: 1,
+  Information: 2,
+  Warning: 3,
+  Error: 4,
+  Critical: 5,
+};
+
+function logLevelClass(level: string): string {
+  switch (level) {
+    case 'Trace':
+      return styles.levelTrace;
+    case 'Debug':
+      return styles.levelDebug;
+    case 'Information':
+      return styles.levelInfo;
+    case 'Warning':
+      return styles.levelWarn;
+    case 'Error':
+      return styles.levelError;
+    case 'Critical':
+      return styles.levelCritical;
+    default:
+      return styles.levelDebug;
+  }
+}
+
+function abbreviateCategory(category: string): string {
+  const parts = category.split('.');
+  if (parts.length <= 2) return category;
+  return `${parts[0]}…${parts[parts.length - 1]}`;
+}
+
+function LogSection({ entries }: { entries: EntryDto[] }) {
+  const [filter, setFilter] = useState<LogFilter>('all');
+
+  if (entries.length === 0) return null;
+
+  const filtered =
+    filter === 'all'
+      ? entries
+      : entries.filter((e) => {
+          const level = (e.content as LogEntryContent)?.level ?? '';
+          const minLevel = filter === 'warn+' ? 3 : 4;
+          return (LOG_LEVEL_ORDER[level] ?? 0) >= minLevel;
+        });
+
+  return (
+    <details className={styles.section} open data-testid="log-section">
+      <summary className={styles.sectionSummary}>
+        <span>
+          Logs <span className={styles.caption}>{entries.length}</span>
+        </span>
+        <div className={styles.levelFilterChips}>
+          {(['all', 'warn+', 'error+'] as LogFilter[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={`${styles.levelFilterChip} ${filter === f ? styles.levelFilterChipActive : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setFilter(f);
+              }}
+              data-testid={`log-filter-${f}`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </summary>
+      <div className={styles.sectionBody}>
+        {filtered.length === 0 ? (
+          <div className={styles.caption}>No entries at this level.</div>
+        ) : (
+          <ul className={styles.efList}>
+            {filtered.map((e) => (
+              <LogRow key={e.id} entry={e} />
+            ))}
+          </ul>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function LogRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as LogEntryContent;
+  const level = content?.level ?? '—';
+
+  return (
+    <li className={styles.efRow} data-testid="log-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span
+          className={`${styles.dbSourceBadge} ${styles.logSourceBadge}`}
+          data-testid="log-source-badge"
+        >
+          LOG
+        </span>
+        <span
+          className={`${styles.levelBadge} ${logLevelClass(level)}`}
+          data-testid="log-level-badge"
+        >
+          {level}
+        </span>
+        <span className={styles.logCategory} title={content?.category}>
+          {abbreviateCategory(content?.category ?? '')}
+        </span>
+        <span className={styles.efPreview}>{content?.message ?? ''}</span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="log-row-body">
+          <div>
+            <div className={styles.metaLabel}>Category</div>
+            <div className={styles.metaValue}>{content?.category}</div>
+          </div>
+          <div>
+            <div className={styles.metaLabel}>Message</div>
+            <div className={styles.metaValue}>{content?.message}</div>
+          </div>
+          {content?.eventId ? (
+            <div>
+              <div className={styles.metaLabel}>Event ID</div>
+              <div className={styles.metaValue}>
+                {content.eventId.id}
+                {content.eventId.name ? ` (${content.eventId.name})` : ''}
+              </div>
+            </div>
+          ) : null}
+          {content?.scopes && content.scopes.length > 0 ? (
+            <div>
+              <div className={styles.metaLabel}>Scopes</div>
+              <ol className={styles.efStack}>
+                {content.scopes.map((s, i) => (
+                  <li key={i} className={styles.efStackFrame}>
+                    {s}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+          {content?.exceptionType ? (
+            <div>
+              <div className={styles.metaLabel}>Exception</div>
+              <div className={styles.metaValue}>
+                {content.exceptionType}: {content.exceptionMessage}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+// ─── Dump section ─────────────────────────────────────────────────────────────
+
+function callerBasename(filePath: string): string {
+  const parts = filePath.replace(/\\/g, '/').split('/');
+  return parts[parts.length - 1] ?? filePath;
+}
+
+function DumpSection({ entries }: { entries: EntryDto[] }) {
+  if (entries.length === 0) return null;
+
+  return (
+    <details className={styles.section} open data-testid="dump-section">
+      <summary className={styles.sectionSummary}>
+        Dump <span className={styles.caption}>{entries.length}</span>
+      </summary>
+      <div className={styles.sectionBody}>
+        <ul className={styles.efList}>
+          {entries.map((e) => (
+            <DumpRow key={e.id} entry={e} />
+          ))}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
+function DumpRow({ entry }: { entry: EntryDto }) {
+  const [open, setOpen] = useState(false);
+  const content = entry.content as DumpEntryContent;
+  const label = content?.label;
+  const fileName = callerBasename(content?.callerFile ?? '');
+  const pretty = tryPrettyJson(content?.json);
+
+  return (
+    <li className={styles.efRow} data-testid="dump-row">
+      <button
+        type="button"
+        className={styles.efRowHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span
+          className={`${styles.dbSourceBadge} ${styles.dumpSourceBadge}`}
+          data-testid="dump-source-badge"
+        >
+          DUMP
+        </span>
+        {label ? (
+          <span className={styles.dumpLabel} data-testid="dump-label">
+            {label}
+          </span>
+        ) : (
+          <span className={`${styles.dumpLabel} ${styles.dumpNoLabel}`} data-testid="dump-no-label">
+            (no label)
+          </span>
+        )}
+        <span className={styles.efMeta}>
+          <span className={styles.logCategory}>{content?.valueType ?? ''}</span>
+          <span className={styles.dumpCallerLocation}>
+            {fileName}:{content?.callerLine}
+          </span>
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.efRowBody} data-testid="dump-row-body">
+          {pretty ? (
+            <TokenizedCode tokens={tokenizeJson(pretty)} />
+          ) : (
+            <pre className={styles.code}>{content?.json}</pre>
+          )}
+          {content?.jsonTruncated ? (
+            <div className={styles.dumpTruncationMarker} data-testid="dump-truncation-marker">
+              JSON truncated
             </div>
           ) : null}
         </div>

@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { CacheEntryContent, EntryDto, OutboundHttpEntryContent } from '../api/types';
+import type {
+  CacheEntryContent,
+  DumpEntryContent,
+  EntryDto,
+  ExceptionEntryContent,
+  LogEntryContent,
+  OutboundHttpEntryContent,
+} from '../api/types';
 import { DetailBody } from './RequestDetail';
 
 const httpEntry: EntryDto = {
@@ -521,5 +528,447 @@ describe('RequestDetail — mixed DB + HTTP-out + cache entries', () => {
     const cacheBadges = screen.getAllByTestId('cache-source-badge').map((b) => b.textContent);
     expect(cacheBadges).toContain('MEM');
     expect(cacheBadges).toContain('DIST');
+  });
+});
+
+// ── Exception section ─────────────────────────────────────────────────────────
+
+function exceptionEntry(
+  id: string,
+  handled = true,
+  overrides: Partial<ExceptionEntryContent> = {},
+): EntryDto {
+  const content: ExceptionEntryContent = {
+    exceptionType: 'System.InvalidOperationException',
+    message: 'Something went wrong',
+    stack: [{ method: 'WebApp.OrdersController.GetOrder', file: 'OrdersController.cs', line: 42 }],
+    innerExceptions: [],
+    source: 'WebApp',
+    hResult: -2146233079,
+    handled,
+    ...overrides,
+  };
+  return {
+    id,
+    type: 'exception',
+    timestamp: 1_700_000_000_500,
+    requestId: 'req-42',
+    durationMs: 0,
+    tags: {
+      'exception.type': content.exceptionType,
+      'exception.handled': handled ? 'true' : 'false',
+    },
+    content,
+  };
+}
+
+describe('RequestDetail — Exception section', () => {
+  it('renders section when exception entries present', () => {
+    render(<DetailBody entries={[httpEntry, exceptionEntry('exc-1')]} />);
+    expect(screen.getByTestId('exception-section')).toBeInTheDocument();
+  });
+
+  it('does not render section when no exception entries', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    expect(screen.queryByTestId('exception-section')).not.toBeInTheDocument();
+  });
+
+  it('renders EXC source badge', () => {
+    render(<DetailBody entries={[httpEntry, exceptionEntry('exc-1')]} />);
+    expect(screen.getByTestId('exc-source-badge')).toHaveTextContent('EXC');
+  });
+
+  it('renders exception type in each row', () => {
+    render(<DetailBody entries={[httpEntry, exceptionEntry('exc-1')]} />);
+    expect(screen.getByTestId('exception-type')).toHaveTextContent(
+      'System.InvalidOperationException',
+    );
+  });
+
+  it('renders handled chip when exception.handled=true', () => {
+    render(<DetailBody entries={[httpEntry, exceptionEntry('exc-1', true)]} />);
+    expect(screen.getByTestId('handled-chip')).toHaveTextContent('handled');
+    expect(screen.queryByTestId('unhandled-chip')).not.toBeInTheDocument();
+  });
+
+  it('renders unhandled chip when exception.handled=false', () => {
+    render(<DetailBody entries={[httpEntry, exceptionEntry('exc-1', false)]} />);
+    expect(screen.getByTestId('unhandled-chip')).toHaveTextContent('unhandled');
+    expect(screen.queryByTestId('handled-chip')).not.toBeInTheDocument();
+  });
+
+  it('toggles expanded body on click and shows stack trace', async () => {
+    const user = userEvent.setup();
+    render(<DetailBody entries={[httpEntry, exceptionEntry('exc-1')]} />);
+    expect(screen.queryByTestId('exception-row-body')).not.toBeInTheDocument();
+    const btn = screen.getByTestId('exception-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.getByTestId('exception-row-body')).toBeInTheDocument();
+    expect(screen.getByTestId('exception-stack')).toBeInTheDocument();
+  });
+
+  it('shows inner exceptions when expanded', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[
+          httpEntry,
+          exceptionEntry('exc-1', true, {
+            innerExceptions: [
+              { type: 'System.ArgumentNullException', message: 'param was null' },
+            ],
+          }),
+        ]}
+      />,
+    );
+    const btn = screen.getByTestId('exception-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.getByTestId('inner-exceptions')).toBeInTheDocument();
+    expect(screen.getByTestId('inner-exceptions')).toHaveTextContent(
+      'System.ArgumentNullException',
+    );
+    expect(screen.getByTestId('inner-exceptions')).toHaveTextContent('param was null');
+  });
+
+  it('shows side panel when only exception entries present', () => {
+    render(<DetailBody entries={[httpEntry, exceptionEntry('exc-1')]} />);
+    expect(screen.getByTestId('exception-section')).toBeInTheDocument();
+  });
+});
+
+// ── Log section ───────────────────────────────────────────────────────────────
+
+function logEntry(
+  id: string,
+  level: string,
+  message = 'Test log message',
+  category = 'WebApp.Controllers.OrdersController',
+  overrides: Partial<LogEntryContent> = {},
+): EntryDto {
+  const content: LogEntryContent = {
+    level,
+    category,
+    message,
+    eventId: null,
+    scopes: [],
+    exceptionType: null,
+    exceptionMessage: null,
+    ...overrides,
+  };
+  return {
+    id,
+    type: 'log',
+    timestamp: 1_700_000_000_600,
+    requestId: 'req-42',
+    durationMs: 0,
+    tags: { 'log.level': level, 'log.category': category },
+    content,
+  };
+}
+
+describe('RequestDetail — Log section', () => {
+  it('renders section when log entries present', () => {
+    render(<DetailBody entries={[httpEntry, logEntry('log-1', 'Information')]} />);
+    expect(screen.getByTestId('log-section')).toBeInTheDocument();
+  });
+
+  it('does not render section when no log entries', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    expect(screen.queryByTestId('log-section')).not.toBeInTheDocument();
+  });
+
+  it('renders one row per log entry', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      logEntry('log-1', 'Information'),
+      logEntry('log-2', 'Warning'),
+      logEntry('log-3', 'Error'),
+    ];
+    render(<DetailBody entries={entries} />);
+    expect(screen.getAllByTestId('log-row')).toHaveLength(3);
+  });
+
+  it('renders LOG source badge on each row', () => {
+    render(<DetailBody entries={[httpEntry, logEntry('log-1', 'Information')]} />);
+    expect(screen.getByTestId('log-source-badge')).toHaveTextContent('LOG');
+  });
+
+  it('renders level badge with correct level text', () => {
+    render(<DetailBody entries={[httpEntry, logEntry('log-1', 'Warning')]} />);
+    expect(screen.getByTestId('log-level-badge')).toHaveTextContent('Warning');
+  });
+
+  it('Warn+ filter hides Information entries', async () => {
+    const user = userEvent.setup();
+    const entries: EntryDto[] = [
+      httpEntry,
+      logEntry('log-1', 'Information'),
+      logEntry('log-2', 'Warning'),
+      logEntry('log-3', 'Error'),
+    ];
+    render(<DetailBody entries={entries} />);
+    expect(screen.getAllByTestId('log-row')).toHaveLength(3);
+
+    await user.click(screen.getByTestId('log-filter-warn+'));
+    expect(screen.getAllByTestId('log-row')).toHaveLength(2);
+  });
+
+  it('Error+ filter shows only Error and Critical entries', async () => {
+    const user = userEvent.setup();
+    const entries: EntryDto[] = [
+      httpEntry,
+      logEntry('log-1', 'Information'),
+      logEntry('log-2', 'Warning'),
+      logEntry('log-3', 'Error'),
+    ];
+    render(<DetailBody entries={entries} />);
+
+    await user.click(screen.getByTestId('log-filter-error+'));
+    expect(screen.getAllByTestId('log-row')).toHaveLength(1);
+  });
+
+  it('All filter restores all entries', async () => {
+    const user = userEvent.setup();
+    const entries: EntryDto[] = [
+      httpEntry,
+      logEntry('log-1', 'Information'),
+      logEntry('log-2', 'Warning'),
+    ];
+    render(<DetailBody entries={entries} />);
+    await user.click(screen.getByTestId('log-filter-warn+'));
+    expect(screen.getAllByTestId('log-row')).toHaveLength(1);
+    await user.click(screen.getByTestId('log-filter-all'));
+    expect(screen.getAllByTestId('log-row')).toHaveLength(2);
+  });
+
+  it('expanded row shows category, message, and scopes', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[
+          httpEntry,
+          logEntry('log-1', 'Information', 'order loaded', 'WebApp.OrdersController', {
+            scopes: ['RequestId:abc', 'OrderId:7'],
+          }),
+        ]}
+      />,
+    );
+    const btn = screen.getByTestId('log-row').querySelector('button')!;
+    await user.click(btn);
+    const body = screen.getByTestId('log-row-body');
+    expect(body).toHaveTextContent('order loaded');
+    expect(body).toHaveTextContent('RequestId:abc');
+    expect(body).toHaveTextContent('OrderId:7');
+  });
+
+  it('expanded row shows event id when present', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[
+          httpEntry,
+          logEntry('log-1', 'Information', 'msg', 'Cat', {
+            eventId: { id: 1001, name: 'OrderLoaded' },
+          }),
+        ]}
+      />,
+    );
+    const btn = screen.getByTestId('log-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.getByTestId('log-row-body')).toHaveTextContent('1001');
+    expect(screen.getByTestId('log-row-body')).toHaveTextContent('OrderLoaded');
+  });
+
+  it('expanded row shows exception type/message when log carried an exception', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[
+          httpEntry,
+          logEntry('log-1', 'Error', 'failed', 'Cat', {
+            exceptionType: 'System.Exception',
+            exceptionMessage: 'bang',
+          }),
+        ]}
+      />,
+    );
+    const btn = screen.getByTestId('log-row').querySelector('button')!;
+    await user.click(btn);
+    const body = screen.getByTestId('log-row-body');
+    expect(body).toHaveTextContent('System.Exception');
+    expect(body).toHaveTextContent('bang');
+  });
+});
+
+// ── Dump section ──────────────────────────────────────────────────────────────
+
+function dumpEntry(
+  id: string,
+  overrides: Partial<DumpEntryContent> = {},
+): EntryDto {
+  const content: DumpEntryContent = {
+    label: 'my-dump',
+    json: '{"id":1,"name":"Alice"}',
+    jsonTruncated: false,
+    valueType: 'WebApp.Models.Order',
+    callerFile: '/src/WebApp/OrdersController.cs',
+    callerLine: 55,
+    callerMember: 'Get',
+    ...overrides,
+  };
+  return {
+    id,
+    type: 'dump',
+    timestamp: 1_700_000_000_700,
+    requestId: 'req-42',
+    durationMs: 0,
+    tags: { dump: 'true', 'dump.type': content.valueType },
+    content,
+  };
+}
+
+describe('RequestDetail — Dump section', () => {
+  it('renders section when dump entries present', () => {
+    render(<DetailBody entries={[httpEntry, dumpEntry('dump-1')]} />);
+    expect(screen.getByTestId('dump-section')).toBeInTheDocument();
+  });
+
+  it('does not render section when no dump entries', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    expect(screen.queryByTestId('dump-section')).not.toBeInTheDocument();
+  });
+
+  it('renders DUMP source badge', () => {
+    render(<DetailBody entries={[httpEntry, dumpEntry('dump-1')]} />);
+    expect(screen.getByTestId('dump-source-badge')).toHaveTextContent('DUMP');
+  });
+
+  it('renders label when present', () => {
+    render(<DetailBody entries={[httpEntry, dumpEntry('dump-1', { label: 'after-lookup' })]} />);
+    expect(screen.getByTestId('dump-label')).toHaveTextContent('after-lookup');
+    expect(screen.queryByTestId('dump-no-label')).not.toBeInTheDocument();
+  });
+
+  it('renders (no label) placeholder when label absent', () => {
+    render(<DetailBody entries={[httpEntry, dumpEntry('dump-1', { label: null })]} />);
+    expect(screen.getByTestId('dump-no-label')).toHaveTextContent('(no label)');
+    expect(screen.queryByTestId('dump-label')).not.toBeInTheDocument();
+  });
+
+  it('expanded row shows pretty-printed JSON', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[httpEntry, dumpEntry('dump-1', { json: '{"id":1,"name":"Alice"}' })]}
+      />,
+    );
+    const btn = screen.getByTestId('dump-row').querySelector('button')!;
+    await user.click(btn);
+    const body = screen.getByTestId('dump-row-body');
+    expect(body).toHaveTextContent('"id"');
+    expect(body).toHaveTextContent('"Alice"');
+  });
+
+  it('shows truncation marker when jsonTruncated is true', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[httpEntry, dumpEntry('dump-1', { jsonTruncated: true })]}
+      />,
+    );
+    const btn = screen.getByTestId('dump-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.getByTestId('dump-truncation-marker')).toBeInTheDocument();
+  });
+
+  it('does not show truncation marker when jsonTruncated is false', async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailBody
+        entries={[httpEntry, dumpEntry('dump-1', { jsonTruncated: false })]}
+      />,
+    );
+    const btn = screen.getByTestId('dump-row').querySelector('button')!;
+    await user.click(btn);
+    expect(screen.queryByTestId('dump-truncation-marker')).not.toBeInTheDocument();
+  });
+
+  it('shows side panel when only dump entries present', () => {
+    render(<DetailBody entries={[httpEntry, dumpEntry('dump-1')]} />);
+    expect(screen.getByTestId('dump-section')).toBeInTheDocument();
+  });
+});
+
+// ── Section ordering ──────────────────────────────────────────────────────────
+
+describe('RequestDetail — section ordering', () => {
+  it('exception section appears before db section', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      exceptionEntry('exc-1'),
+      efEntry('ef-1', 'SELECT 1'),
+    ];
+    render(<DetailBody entries={entries} />);
+    const exc = screen.getByTestId('exception-section');
+    const db = screen.getByTestId('db-section');
+    expect(exc.compareDocumentPosition(db) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('log section appears after cache section', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      cacheEntry('c1', 'Get', true),
+      logEntry('log-1', 'Information'),
+    ];
+    render(<DetailBody entries={entries} />);
+    const cache = screen.getByTestId('cache-section');
+    const log = screen.getByTestId('log-section');
+    expect(cache.compareDocumentPosition(log) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('dump section appears after log section', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      logEntry('log-1', 'Information'),
+      dumpEntry('dump-1'),
+    ];
+    render(<DetailBody entries={entries} />);
+    const log = screen.getByTestId('log-section');
+    const dump = screen.getByTestId('dump-section');
+    expect(log.compareDocumentPosition(dump) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('all six sections render in correct order with all entry types', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      exceptionEntry('exc-1'),
+      efEntry('ef-1', 'SELECT 1'),
+      httpOutEntry('out-1'),
+      cacheEntry('c1', 'Get', true),
+      logEntry('log-1', 'Information'),
+      dumpEntry('dump-1'),
+    ];
+    render(<DetailBody entries={entries} />);
+    const sections = ['exception-section', 'db-section', 'http-out-section', 'cache-section', 'log-section', 'dump-section']
+      .map((id) => screen.getByTestId(id));
+
+    for (let i = 0; i < sections.length - 1; i++) {
+      expect(
+        sections[i].compareDocumentPosition(sections[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it('EXC/LOG/DUMP source badges all render with correct labels', () => {
+    const entries: EntryDto[] = [
+      httpEntry,
+      exceptionEntry('exc-1'),
+      logEntry('log-1', 'Information'),
+      dumpEntry('dump-1'),
+    ];
+    render(<DetailBody entries={entries} />);
+    expect(screen.getByTestId('exc-source-badge')).toHaveTextContent('EXC');
+    expect(screen.getByTestId('log-source-badge')).toHaveTextContent('LOG');
+    expect(screen.getByTestId('dump-source-badge')).toHaveTextContent('DUMP');
   });
 });

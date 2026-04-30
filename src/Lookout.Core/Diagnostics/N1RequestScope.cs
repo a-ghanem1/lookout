@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Lookout.Core.Diagnostics;
 
@@ -34,6 +35,10 @@ public sealed class N1RequestScope : IDisposable
     private readonly List<(LookoutEntry Entry, string ShapeKey)> _pending = new();
     private int _httpOutCount;
     private int _cacheCount;
+    private int _exceptionCount;
+    private int _logCount;
+    private LogLevel? _maxLogLevel;
+    private int _dumpCount;
 
     /// <summary>Total DB entries buffered in this scope.</summary>
     public int DbCount => _pending.Count;
@@ -43,6 +48,18 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Total cache entries recorded in this scope.</summary>
     public int CacheCount => _cacheCount;
+
+    /// <summary>Total exception entries recorded in this scope.</summary>
+    public int ExceptionCount => _exceptionCount;
+
+    /// <summary>Total log entries recorded in this scope.</summary>
+    public int LogCount => _logCount;
+
+    /// <summary>Highest log level seen in this scope, or <c>null</c> when no log entries were recorded.</summary>
+    public LogLevel? MaxLogLevel => _maxLogLevel;
+
+    /// <summary>Total <see cref="Lookout.Dump"/> entries recorded in this scope.</summary>
+    public int DumpCount => _dumpCount;
 
     private N1RequestScope(EfOptions options)
     {
@@ -62,6 +79,23 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Increments the cache operation counter. Called by cache decorators after recording.</summary>
     public void TrackCache() => _cacheCount++;
+
+    /// <summary>Increments the exception counter. Called by exception capture paths after recording.</summary>
+    public void TrackException() => _exceptionCount++;
+
+    /// <summary>
+    /// Increments the log counter and updates the high-water-mark level.
+    /// Called by <c>LookoutLogger</c> after recording each log entry.
+    /// </summary>
+    public void TrackLog(LogLevel level)
+    {
+        _logCount++;
+        if (_maxLogLevel is null || level > _maxLogLevel.Value)
+            _maxLogLevel = level;
+    }
+
+    /// <summary>Increments the dump counter. Called by <see cref="Lookout.Dump"/> after recording.</summary>
+    public void TrackDump() => _dumpCount++;
 
     /// <summary>
     /// Buffers a DB entry for N+1 tracking. Called by the EF interceptor and ADO.NET subscriber
