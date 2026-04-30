@@ -1,91 +1,15 @@
 .shell {
   display: flex;
-  flex-direction: column;
-  min-height: 100%;
+  min-height: 100vh;
   background: var(--color-bg-canvas);
-  color: var(--color-fg-default);
-  overflow-x: hidden;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-3) var(--space-6);
-  border-bottom: 1px solid var(--color-border-default);
-  background: var(--color-bg-subtle);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--color-fg-default);
-  text-decoration: none;
-}
-
-.brandMark {
-  width: var(--space-10);
-  height: var(--space-10);
-  color: var(--color-accent-fg);
-  flex-shrink: 0;
-}
-
-.brandText {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  line-height: 1;
-}
-
-.brandWordmark {
-  font-family: var(--font-sans);
-  font-weight: var(--font-weight-bold);
-  font-size: var(--text-xl-size);
-  line-height: 1;
-  letter-spacing: -0.02em;
-  color: var(--color-fg-default);
-}
-
-.brandTagline {
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-medium);
-  font-size: var(--text-3xs-size);
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-fg-muted);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.themeButton {
-  height: var(--space-8);
-  padding: var(--space-0) var(--space-3);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-fg-muted);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs-size);
-  line-height: var(--text-xs-line);
-  cursor: pointer;
-  transition: background-color var(--duration-hover) var(--ease-out),
-    color var(--duration-hover) var(--ease-out);
-}
-
-.themeButton:hover {
-  background: var(--color-bg-hover);
   color: var(--color-fg-default);
 }
 
 .main {
+  margin-left: var(--sidebar-width);
   flex: 1 1 auto;
-  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
 }

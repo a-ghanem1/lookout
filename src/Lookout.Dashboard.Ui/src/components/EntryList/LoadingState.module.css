@@ -1,0 +1,21 @@
+@keyframes shimmer {
+  from { opacity: 1; }
+  to { opacity: 0.4; }
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.shimmerRow {
+  height: var(--space-10);
+  background: var(--color-bg-muted);
+  border-bottom: 1px solid var(--color-border-muted);
+  animation: shimmer var(--duration-expand) var(--ease-out) alternate infinite;
+}
+
+.shimmerRow:nth-child(odd) {
+  background: var(--color-bg-subtle);
+}

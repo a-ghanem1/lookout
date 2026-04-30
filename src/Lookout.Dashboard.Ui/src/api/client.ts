@@ -1,4 +1,4 @@
-import type { EntryDto, EntryListQuery, EntryListResponse } from './types';
+import type { CacheSummary, EntryCounts, EntryDto, EntryListQuery, EntryListResponse } from './types';
 
 /**
  * API URLs are relative to `<base href>`, which the server injects into index.html
@@ -16,6 +16,13 @@ function qs(query: EntryListQuery): string {
   if (query.q) params.set('q', query.q);
   if (query.before !== undefined) params.set('before', String(query.before));
   if (query.limit !== undefined) params.set('limit', String(query.limit));
+  if (query.sort) params.set('sort', query.sort);
+  if (query.minDurationMs !== undefined) params.set('min_duration_ms', String(query.minDurationMs));
+  if (query.maxDurationMs !== undefined) params.set('max_duration_ms', String(query.maxDurationMs));
+  if (query.host) params.set('host', query.host);
+  if (query.errorsOnly) params.set('errors_only', 'true');
+  if (query.minLevel) params.set('min_level', query.minLevel);
+  if (query.handled !== undefined) params.set('handled', String(query.handled));
   const s = params.toString();
   return s ? `?${s}` : '';
 }
@@ -33,6 +40,18 @@ export async function getEntry(id: string, signal?: AbortSignal): Promise<EntryD
   const resp = await fetch(`${API_BASE}entries/${encodeURIComponent(id)}`, { signal });
   if (!resp.ok) throw new Error(`entry: ${resp.status}`);
   return (await resp.json()) as EntryDto;
+}
+
+export async function getCacheSummary(signal?: AbortSignal): Promise<CacheSummary> {
+  const resp = await fetch(`${API_BASE}entries/cache/summary`, { signal });
+  if (!resp.ok) throw new Error(`cache/summary: ${resp.status}`);
+  return (await resp.json()) as CacheSummary;
+}
+
+export async function getEntryCounts(signal?: AbortSignal): Promise<EntryCounts> {
+  const resp = await fetch(`${API_BASE}entries/counts`, { signal });
+  if (!resp.ok) throw new Error(`counts: ${resp.status}`);
+  return (await resp.json()) as EntryCounts;
 }
 
 export async function getRequestEntries(

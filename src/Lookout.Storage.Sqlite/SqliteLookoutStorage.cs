@@ -141,7 +141,22 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             cmd.Parameters.AddWithValue("@q", query.Q);
         }
 
-        if (!string.IsNullOrEmpty(query.Type))
+        if (query.TypeIn is { Count: > 0 } typeIn)
+        {
+            if (typeIn.Count == 1)
+            {
+                where.Add("e.type = @type");
+                cmd.Parameters.AddWithValue("@type", typeIn[0]);
+            }
+            else
+            {
+                var pnames = Enumerable.Range(0, typeIn.Count).Select(i => $"@t{i}").ToArray();
+                where.Add($"e.type IN ({string.Join(",", pnames)})");
+                for (var ti = 0; ti < typeIn.Count; ti++)
+                    cmd.Parameters.AddWithValue($"@t{ti}", typeIn[ti]);
+            }
+        }
+        else if (!string.IsNullOrEmpty(query.Type))
         {
             where.Add("e.type = @type");
             cmd.Parameters.AddWithValue("@type", query.Type);
@@ -177,6 +192,44 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             cmd.Parameters.AddWithValue("@before", before);
         }
 
+        if (query.MinDurationMs is double minDur)
+        {
+            where.Add("e.duration_ms >= @minDur");
+            cmd.Parameters.AddWithValue("@minDur", minDur);
+        }
+
+        if (query.MaxDurationMs is double maxDur)
+        {
+            where.Add("e.duration_ms <= @maxDur");
+            cmd.Parameters.AddWithValue("@maxDur", maxDur);
+        }
+
+        if (!string.IsNullOrEmpty(query.UrlHost))
+        {
+            where.Add("LOWER(json_extract(e.tags_json, '$.\"http.url.host\"')) LIKE @urlHost");
+            cmd.Parameters.AddWithValue("@urlHost", "%" + query.UrlHost.ToLowerInvariant() + "%");
+        }
+
+        if (query.ErrorsOnly is true)
+        {
+            where.Add("json_extract(e.tags_json, '$.\"http.error\"') IS NOT NULL");
+        }
+
+        if (!string.IsNullOrEmpty(query.MinLevel) && TryGetLogLevelOrdinal(query.MinLevel, out var levelOrd))
+        {
+            where.Add(
+                "CASE json_extract(e.tags_json, '$.\"log.level\"') " +
+                "WHEN 'Trace' THEN 0 WHEN 'Debug' THEN 1 WHEN 'Information' THEN 2 " +
+                "WHEN 'Warning' THEN 3 WHEN 'Error' THEN 4 WHEN 'Critical' THEN 5 ELSE -1 END >= @minLevel");
+            cmd.Parameters.AddWithValue("@minLevel", levelOrd);
+        }
+
+        if (query.Handled is bool handled)
+        {
+            where.Add("json_extract(e.tags_json, '$.\"exception.handled\"') = @handled");
+            cmd.Parameters.AddWithValue("@handled", handled ? "true" : "false");
+        }
+
         if (where.Count > 0)
         {
             sql.Append("WHERE ");
@@ -184,7 +237,11 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             sql.Append(' ');
         }
 
-        sql.Append("ORDER BY e.timestamp_utc DESC, e.id DESC LIMIT @limit");
+        var orderBy = query.Sort == "duration"
+            ? "ORDER BY COALESCE(e.duration_ms, 0) DESC, e.id DESC"
+            : "ORDER BY e.timestamp_utc DESC, e.id DESC";
+        sql.Append(orderBy);
+        sql.Append(" LIMIT @limit");
         cmd.Parameters.AddWithValue("@limit", limit);
         cmd.CommandText = sql.ToString();
 
@@ -225,7 +282,83 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         return results;
     }
 
+    public async Task<(long Hits, long Misses, long Sets, long Removes)> GetCacheSummaryAsync(
+        long? fromUnixMs = null, long? toUnixMs = null, CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+
+        var where = new List<string> { "type = 'cache'" };
+        if (fromUnixMs is long from) { where.Add("timestamp_utc >= @from"); cmd.Parameters.AddWithValue("@from", from); }
+        if (toUnixMs is long to) { where.Add("timestamp_utc <= @to"); cmd.Parameters.AddWithValue("@to", to); }
+        var whereClause = $"WHERE {string.Join(" AND ", where)}";
+
+        cmd.CommandText =
+            "SELECT " +
+            "SUM(CASE WHEN json_extract(tags_json, '$.\"cache.hit\"') = 'true' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN json_extract(tags_json, '$.\"cache.hit\"') = 'false' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN json_extract(content_json, '$.operation') = 'Set' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN json_extract(content_json, '$.operation') = 'Remove' THEN 1 ELSE 0 END) " +
+            $"FROM entries {whereClause}";
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+            return (0, 0, 0, 0);
+
+        return (
+            reader.IsDBNull(0) ? 0 : reader.GetInt64(0),
+            reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
+            reader.IsDBNull(2) ? 0 : reader.GetInt64(2),
+            reader.IsDBNull(3) ? 0 : reader.GetInt64(3));
+    }
+
+    public async Task<(long Requests, long Queries, long Exceptions, long Logs, long Cache, long HttpClients, long Jobs, long Dump)> GetCountsAsync(CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            "SELECT " +
+            "SUM(CASE WHEN type = 'http' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type IN ('ef','sql') THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'exception' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'log' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'cache' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'http-out' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type IN ('job-enqueue','job-execution') THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN type = 'dump' THEN 1 ELSE 0 END) " +
+            "FROM entries";
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+            return (0, 0, 0, 0, 0, 0, 0, 0);
+
+        return (
+            reader.IsDBNull(0) ? 0 : reader.GetInt64(0),
+            reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
+            reader.IsDBNull(2) ? 0 : reader.GetInt64(2),
+            reader.IsDBNull(3) ? 0 : reader.GetInt64(3),
+            reader.IsDBNull(4) ? 0 : reader.GetInt64(4),
+            reader.IsDBNull(5) ? 0 : reader.GetInt64(5),
+            reader.IsDBNull(6) ? 0 : reader.GetInt64(6),
+            reader.IsDBNull(7) ? 0 : reader.GetInt64(7));
+    }
+
     public void Dispose() => (_factory as IDisposable)?.Dispose();
+
+    private static bool TryGetLogLevelOrdinal(string level, out int ordinal)
+    {
+        ordinal = level switch
+        {
+            "Trace" => 0,
+            "Debug" => 1,
+            "Information" => 2,
+            "Warning" => 3,
+            "Error" => 4,
+            "Critical" => 5,
+            _ => -1,
+        };
+        return ordinal >= 0;
+    }
 
     private static LookoutEntry ReadEntry(SqliteDataReader reader) =>
         new(

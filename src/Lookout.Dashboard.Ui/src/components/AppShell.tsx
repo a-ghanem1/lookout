@@ -1,35 +1,22 @@
 import type { ReactNode } from 'react';
+import { useEntryCounts } from '../hooks/useEntryCounts';
+import type { Route } from '../router/hashRouter';
 import { useTheme } from '../theme/useTheme';
-import { LookoutLogo } from './LookoutLogo';
+import { Sidebar } from './Sidebar/Sidebar';
 import styles from './AppShell.module.css';
 
 export interface AppShellProps {
+  route: Route;
   children: ReactNode;
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ route, children }: AppShellProps) {
   const [theme, toggle] = useTheme();
+  const counts = useEntryCounts();
+
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <a className={styles.brand} href="#/" aria-label="Lookout — diagnostics for ASP.NET Core">
-          <LookoutLogo className={styles.brandMark} aria-hidden="true" aria-label={undefined} />
-          <span className={styles.brandText}>
-            <span className={styles.brandWordmark}>lookout</span>
-            <span className={styles.brandTagline}>Diagnostics for ASP.NET Core</span>
-          </span>
-        </a>
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.themeButton}
-            onClick={toggle}
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-          >
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
-        </div>
-      </header>
+      <Sidebar route={route} counts={counts} theme={theme} onThemeToggle={toggle} />
       <main className={styles.main}>{children}</main>
     </div>
   );

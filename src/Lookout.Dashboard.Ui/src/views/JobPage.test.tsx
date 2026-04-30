@@ -170,4 +170,36 @@ describe('JobPage — execution entry', () => {
     render(<JobBody entry={jobExecutionEntry('Succeeded', { enqueueRequestId: null })} />);
     expect(screen.queryByTestId('enqueue-request-link')).not.toBeInTheDocument();
   });
+
+  it('truncates long enqueue request id to 8 chars in link text', () => {
+    const longId = 'f8db559edd7937eab59c75edf92e0b44';
+    render(<JobBody entry={jobExecutionEntry('Succeeded', { enqueueRequestId: longId })} />);
+    const link = screen.getByTestId('enqueue-request-link');
+    expect(link).toHaveTextContent('f8db559e…');
+    expect(link).toHaveAttribute('href', `#/requests/${longId}`);
+    expect(link).toHaveAttribute('title', longId);
+  });
+
+  it('does not truncate short enqueue request id', () => {
+    render(<JobBody entry={jobExecutionEntry()} />);
+    const link = screen.getByTestId('enqueue-request-link');
+    expect(link).toHaveTextContent('req-42');
+    expect(link).not.toHaveTextContent('…');
+  });
+
+  it('renders back-to-jobs link on execution entry', () => {
+    render(<JobBody entry={jobExecutionEntry()} />);
+    const link = screen.getByTestId('back-to-jobs');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '#/jobs');
+  });
+});
+
+describe('JobPage — enqueue back-to-jobs link', () => {
+  it('renders back-to-jobs link on enqueue entry', () => {
+    render(<JobBody entry={jobEnqueueEntry()} />);
+    const link = screen.getByTestId('back-to-jobs');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '#/jobs');
+  });
 });

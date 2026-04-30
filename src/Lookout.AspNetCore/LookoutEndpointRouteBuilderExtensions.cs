@@ -26,6 +26,8 @@ public static class LookoutEndpointRouteBuilderExtensions
         var group = endpoints.MapGroup(pathPrefix);
 
         group.MapGet("/api/entries", ListEntriesAsync);
+        group.MapGet("/api/entries/counts", GetEntryCountsAsync);
+        group.MapGet("/api/entries/cache/summary", GetCacheSummaryAsync);
         group.MapGet("/api/entries/{id:guid}", GetEntryAsync);
         group.MapGet("/api/requests/{id}", GetRequestEntriesAsync);
 
@@ -127,6 +129,37 @@ public static class LookoutEndpointRouteBuilderExtensions
         };
     }
 
+    private static async Task<IResult> GetEntryCountsAsync(
+        HttpContext ctx,
+        SqliteLookoutStorage storage)
+    {
+        var counts = await storage.GetCountsAsync(ctx.RequestAborted).ConfigureAwait(false);
+        ctx.Response.Headers.CacheControl = "no-store";
+        return Json(new EntryCounts(
+            counts.Requests,
+            counts.Queries,
+            counts.Exceptions,
+            counts.Logs,
+            counts.Cache,
+            counts.HttpClients,
+            counts.Jobs,
+            counts.Dump));
+    }
+
+    private static async Task<IResult> GetCacheSummaryAsync(
+        HttpContext ctx,
+        SqliteLookoutStorage storage,
+        long? from = null,
+        long? to = null)
+    {
+        var (hits, misses, sets, removes) = await storage
+            .GetCacheSummaryAsync(from, to, ctx.RequestAborted).ConfigureAwait(false);
+        var total = hits + misses;
+        var hitRatio = total > 0 ? (double)hits / total : 0.0;
+        ctx.Response.Headers.CacheControl = "no-store";
+        return Json(new CacheSummary(hits, misses, sets, removes, hitRatio));
+    }
+
     private static async Task<IResult> ListEntriesAsync(
         HttpContext ctx,
         SqliteLookoutStorage storage,
@@ -136,7 +169,14 @@ public static class LookoutEndpointRouteBuilderExtensions
         string? path = null,
         string? q = null,
         long? before = null,
-        int? limit = null)
+        int? limit = null,
+        string? sort = null,
+        double? min_duration_ms = null,
+        double? max_duration_ms = null,
+        string? host = null,
+        bool? errors_only = null,
+        string? min_level = null,
+        bool? handled = null)
     {
         if (!TryParseStatus(status, out var statusMin, out var statusMax))
             return Results.Text(
@@ -146,15 +186,33 @@ public static class LookoutEndpointRouteBuilderExtensions
 
         var effectiveLimit = Math.Clamp(limit ?? 50, 1, 200);
 
+        // Parse comma-separated type list (e.g. "ef,sql") for multi-type filtering
+        string? singleType = null;
+        IReadOnlyList<string>? typeIn = null;
+        if (!string.IsNullOrEmpty(type))
+        {
+            var parts = type.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length == 1) singleType = parts[0];
+            else typeIn = parts;
+        }
+
         var query = new LookoutQuery(
-            Type: type,
+            Type: singleType,
+            TypeIn: typeIn,
             Method: method,
             StatusMin: statusMin,
             StatusMax: statusMax,
             Path: path,
             Q: q,
             BeforeUnixMs: before,
-            Limit: effectiveLimit);
+            Limit: effectiveLimit,
+            Sort: sort,
+            MinDurationMs: min_duration_ms,
+            MaxDurationMs: max_duration_ms,
+            UrlHost: host,
+            ErrorsOnly: errors_only,
+            MinLevel: min_level,
+            Handled: handled);
 
         var entries = await storage.QueryAsync(query, ctx.RequestAborted).ConfigureAwait(false);
         var dtos = entries.Select(EntryDto.From).ToArray();
