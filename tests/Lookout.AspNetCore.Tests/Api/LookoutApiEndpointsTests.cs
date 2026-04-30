@@ -818,4 +818,139 @@ public sealed class LookoutApiEndpointsTests : IDisposable
     }
 
     private static string PathOf(EntryDto dto) => dto.Tags["http.path"];
+
+    [Fact]
+    public async Task MinLevel_Warning_ExcludesLowerLevels()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeLog("Trace", "App", "trace msg", offsetMs: -5000),
+            MakeLog("Debug", "App", "debug msg", offsetMs: -4000),
+            MakeLog("Information", "App", "info msg", offsetMs: -3000),
+            MakeLog("Warning", "App", "warn msg", offsetMs: -2000),
+            MakeLog("Error", "App", "error msg", offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var payload = await ReadListAsync(
+            await app.GetTestClient().GetAsync("/lookout/api/entries?type=log&min_level=Warning"));
+        await app.StopAsync();
+
+        payload.Entries.Should().HaveCount(2);
+        payload.Entries.Select(e => e.Tags["log.level"]).Should().BeEquivalentTo(["Error", "Warning"]);
+    }
+
+    [Fact]
+    public async Task MinLevel_Information_IncludesInformationAndAbove()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeLog("Trace", "App", "trace msg", offsetMs: -4000),
+            MakeLog("Debug", "App", "debug msg", offsetMs: -3000),
+            MakeLog("Information", "App", "info msg", offsetMs: -2000),
+            MakeLog("Warning", "App", "warn msg", offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var payload = await ReadListAsync(
+            await app.GetTestClient().GetAsync("/lookout/api/entries?type=log&min_level=Information"));
+        await app.StopAsync();
+
+        payload.Entries.Should().HaveCount(2);
+        payload.Entries.Select(e => e.Tags["log.level"]).Should().BeEquivalentTo(["Warning", "Information"]);
+    }
+
+    [Fact]
+    public async Task Handled_True_ReturnsOnlyHandledExceptions()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeException("System.InvalidOperationException", "handled ex", handled: true, offsetMs: -3000),
+            MakeException("System.NullReferenceException", "unhandled ex", handled: false, offsetMs: -2000),
+            MakeException("System.ArgumentException", "also handled", handled: true, offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var payload = await ReadListAsync(
+            await app.GetTestClient().GetAsync("/lookout/api/entries?type=exception&handled=true"));
+        await app.StopAsync();
+
+        payload.Entries.Should().HaveCount(2);
+        payload.Entries.Should().AllSatisfy(e => e.Tags["exception.handled"].Should().Be("true"));
+    }
+
+    [Fact]
+    public async Task Handled_False_ReturnsOnlyUnhandledExceptions()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeException("System.InvalidOperationException", "handled ex", handled: true, offsetMs: -2000),
+            MakeException("System.NullReferenceException", "unhandled ex", handled: false, offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var payload = await ReadListAsync(
+            await app.GetTestClient().GetAsync("/lookout/api/entries?type=exception&handled=false"));
+        await app.StopAsync();
+
+        payload.Entries.Should().ContainSingle();
+        payload.Entries[0].Tags["exception.handled"].Should().Be("false");
+        payload.Entries[0].Tags["exception.type"].Should().Be("System.NullReferenceException");
+    }
+
+    private static LookoutEntry MakeLog(string level, string category, string message, long offsetMs)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        var content = new LogEntryContent(
+            Level: level,
+            Category: category,
+            Message: message,
+            EventId: new LogEventId(0, null),
+            Scopes: [],
+            ExceptionType: null,
+            ExceptionMessage: null);
+
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "log",
+            Timestamp: ts,
+            RequestId: null,
+            DurationMs: 0,
+            Tags: new Dictionary<string, string>
+            {
+                ["log.level"] = level,
+                ["log.category"] = category,
+            },
+            Content: JsonSerializer.Serialize(content, LookoutJson.Options));
+    }
+
+    private static LookoutEntry MakeException(string exType, string message, bool handled, long offsetMs)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        var content = new ExceptionEntryContent(
+            ExceptionType: exType,
+            Message: message,
+            Stack: [],
+            InnerExceptions: [],
+            Source: null,
+            HResult: -2146233088,
+            Handled: handled);
+
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "exception",
+            Timestamp: ts,
+            RequestId: null,
+            DurationMs: 0,
+            Tags: new Dictionary<string, string>
+            {
+                ["exception.type"] = exType,
+                ["exception.handled"] = handled ? "true" : "false",
+            },
+            Content: JsonSerializer.Serialize(content, LookoutJson.Options));
+    }
 }

@@ -169,6 +169,8 @@ export interface EntryListQuery {
   maxDurationMs?: number;
   host?: string;
   errorsOnly?: boolean;
+  minLevel?: string;
+  handled?: boolean;
 }
 
 export interface CacheSummary {

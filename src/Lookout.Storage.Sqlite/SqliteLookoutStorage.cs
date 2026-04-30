@@ -215,6 +215,21 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             where.Add("json_extract(e.tags_json, '$.\"http.error\"') IS NOT NULL");
         }
 
+        if (!string.IsNullOrEmpty(query.MinLevel) && TryGetLogLevelOrdinal(query.MinLevel, out var levelOrd))
+        {
+            where.Add(
+                "CASE json_extract(e.tags_json, '$.\"log.level\"') " +
+                "WHEN 'Trace' THEN 0 WHEN 'Debug' THEN 1 WHEN 'Information' THEN 2 " +
+                "WHEN 'Warning' THEN 3 WHEN 'Error' THEN 4 WHEN 'Critical' THEN 5 ELSE -1 END >= @minLevel");
+            cmd.Parameters.AddWithValue("@minLevel", levelOrd);
+        }
+
+        if (query.Handled is bool handled)
+        {
+            where.Add("json_extract(e.tags_json, '$.\"exception.handled\"') = @handled");
+            cmd.Parameters.AddWithValue("@handled", handled ? "true" : "false");
+        }
+
         if (where.Count > 0)
         {
             sql.Append("WHERE ");
@@ -329,6 +344,21 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
     }
 
     public void Dispose() => (_factory as IDisposable)?.Dispose();
+
+    private static bool TryGetLogLevelOrdinal(string level, out int ordinal)
+    {
+        ordinal = level switch
+        {
+            "Trace" => 0,
+            "Debug" => 1,
+            "Information" => 2,
+            "Warning" => 3,
+            "Error" => 4,
+            "Critical" => 5,
+            _ => -1,
+        };
+        return ordinal >= 0;
+    }
 
     private static LookoutEntry ReadEntry(SqliteDataReader reader) =>
         new(

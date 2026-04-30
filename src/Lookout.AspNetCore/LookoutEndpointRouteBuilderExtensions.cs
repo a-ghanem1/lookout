@@ -174,7 +174,9 @@ public static class LookoutEndpointRouteBuilderExtensions
         double? min_duration_ms = null,
         double? max_duration_ms = null,
         string? host = null,
-        bool? errors_only = null)
+        bool? errors_only = null,
+        string? min_level = null,
+        bool? handled = null)
     {
         if (!TryParseStatus(status, out var statusMin, out var statusMax))
             return Results.Text(
@@ -208,7 +210,9 @@ public static class LookoutEndpointRouteBuilderExtensions
             MinDurationMs: min_duration_ms,
             MaxDurationMs: max_duration_ms,
             UrlHost: host,
-            ErrorsOnly: errors_only);
+            ErrorsOnly: errors_only,
+            MinLevel: min_level,
+            Handled: handled);
 
         var entries = await storage.QueryAsync(query, ctx.RequestAborted).ConfigureAwait(false);
         var dtos = entries.Select(EntryDto.From).ToArray();

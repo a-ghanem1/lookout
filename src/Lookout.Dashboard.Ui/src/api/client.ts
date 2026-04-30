@@ -21,6 +21,8 @@ function qs(query: EntryListQuery): string {
   if (query.maxDurationMs !== undefined) params.set('max_duration_ms', String(query.maxDurationMs));
   if (query.host) params.set('host', query.host);
   if (query.errorsOnly) params.set('errors_only', 'true');
+  if (query.minLevel) params.set('min_level', query.minLevel);
+  if (query.handled !== undefined) params.set('handled', String(query.handled));
   const s = params.toString();
   return s ? `?${s}` : '';
 }

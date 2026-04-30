@@ -18,6 +18,8 @@ namespace Lookout.Core;
 /// <param name="MaxDurationMs">Inclusive upper bound for <c>duration_ms</c>.</param>
 /// <param name="UrlHost">Substring match against the <c>http.url.host</c> tag (case-insensitive).</param>
 /// <param name="ErrorsOnly">When true, restricts to entries that have an <c>http.error</c> tag (network-level failures).</param>
+/// <param name="MinLevel">Inclusive minimum log level for <c>log.level</c> tag (Trace/Debug/Information/Warning/Error/Critical).</param>
+/// <param name="Handled">When set, filters exceptions by <c>exception.handled</c> tag.</param>
 public sealed record LookoutQuery(
     string? Type = null,
     IReadOnlyList<string>? TypeIn = null,
@@ -32,4 +34,6 @@ public sealed record LookoutQuery(
     double? MinDurationMs = null,
     double? MaxDurationMs = null,
     string? UrlHost = null,
-    bool? ErrorsOnly = null);
+    bool? ErrorsOnly = null,
+    string? MinLevel = null,
+    bool? Handled = null);
