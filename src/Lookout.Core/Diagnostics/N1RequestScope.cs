@@ -39,6 +39,7 @@ public sealed class N1RequestScope : IDisposable
     private int _logCount;
     private LogLevel? _maxLogLevel;
     private int _dumpCount;
+    private int _jobEnqueueCount;
 
     /// <summary>Total DB entries buffered in this scope.</summary>
     public int DbCount => _pending.Count;
@@ -60,6 +61,9 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Total <see cref="Lookout.Dump"/> entries recorded in this scope.</summary>
     public int DumpCount => _dumpCount;
+
+    /// <summary>Total Hangfire job enqueues issued during this scope.</summary>
+    public int JobEnqueueCount => _jobEnqueueCount;
 
     private N1RequestScope(EfOptions options)
     {
@@ -96,6 +100,9 @@ public sealed class N1RequestScope : IDisposable
 
     /// <summary>Increments the dump counter. Called by <see cref="Lookout.Dump"/> after recording.</summary>
     public void TrackDump() => _dumpCount++;
+
+    /// <summary>Increments the Hangfire job-enqueue counter. Called by <c>LookoutHangfireClientFilter</c> after recording.</summary>
+    public void TrackJobEnqueue() => _jobEnqueueCount++;
 
     /// <summary>
     /// Buffers a DB entry for N+1 tracking. Called by the EF interceptor and ADO.NET subscriber

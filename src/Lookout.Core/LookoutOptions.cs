@@ -79,6 +79,9 @@ public sealed class LookoutOptions
     /// <summary>Dump capture configuration.</summary>
     public DumpOptions Dump { get; set; } = new();
 
+    /// <summary>Hangfire background-job capture configuration.</summary>
+    public HangfireOptions Hangfire { get; set; } = new();
+
     /// <summary>
     /// Custom redaction callback applied in the flusher after the default redactors.
     /// Return a (possibly modified) entry; return the input unchanged to pass through.

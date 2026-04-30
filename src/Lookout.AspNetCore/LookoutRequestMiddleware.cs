@@ -131,7 +131,7 @@ internal sealed class LookoutRequestMiddleware
                     requestContentType, requestBody, requestBodyTruncated,
                     responseCapture, n1Scope.DbCount, n1Scope.HttpOutCount, n1Scope.CacheCount,
                     n1Scope.ExceptionCount, n1Scope.LogCount, n1Scope.MaxLogLevel,
-                    n1Scope.DumpCount, n1Groups);
+                    n1Scope.DumpCount, n1Scope.JobEnqueueCount, n1Groups);
             }
             catch (Exception ex)
             {
@@ -175,6 +175,7 @@ internal sealed class LookoutRequestMiddleware
         int logCount,
         LogLevel? maxLogLevel,
         int dumpCount,
+        int jobEnqueueCount,
         IReadOnlyList<N1Group> n1Groups)
     {
         var req = context.Request;
@@ -239,6 +240,11 @@ internal sealed class LookoutRequestMiddleware
         }
         if (dumpCount > 0)
             tags["dump.count"] = dumpCount.ToString(CultureInfo.InvariantCulture);
+        if (jobEnqueueCount > 0)
+        {
+            tags["job.enqueue.count"] = jobEnqueueCount.ToString(CultureInfo.InvariantCulture);
+            tags["job.enqueued"] = "true";
+        }
 
         var entry = new LookoutEntry(
             Id: Guid.NewGuid(),
