@@ -154,7 +154,12 @@ public static class LookoutEndpointRouteBuilderExtensions
         string? path = null,
         string? q = null,
         long? before = null,
-        int? limit = null)
+        int? limit = null,
+        string? sort = null,
+        double? min_duration_ms = null,
+        double? max_duration_ms = null,
+        string? host = null,
+        bool? errors_only = null)
     {
         if (!TryParseStatus(status, out var statusMin, out var statusMax))
             return Results.Text(
@@ -164,15 +169,31 @@ public static class LookoutEndpointRouteBuilderExtensions
 
         var effectiveLimit = Math.Clamp(limit ?? 50, 1, 200);
 
+        // Parse comma-separated type list (e.g. "ef,sql") for multi-type filtering
+        string? singleType = null;
+        IReadOnlyList<string>? typeIn = null;
+        if (!string.IsNullOrEmpty(type))
+        {
+            var parts = type.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length == 1) singleType = parts[0];
+            else typeIn = parts;
+        }
+
         var query = new LookoutQuery(
-            Type: type,
+            Type: singleType,
+            TypeIn: typeIn,
             Method: method,
             StatusMin: statusMin,
             StatusMax: statusMax,
             Path: path,
             Q: q,
             BeforeUnixMs: before,
-            Limit: effectiveLimit);
+            Limit: effectiveLimit,
+            Sort: sort,
+            MinDurationMs: min_duration_ms,
+            MaxDurationMs: max_duration_ms,
+            UrlHost: host,
+            ErrorsOnly: errors_only);
 
         var entries = await storage.QueryAsync(query, ctx.RequestAborted).ConfigureAwait(false);
         var dtos = entries.Select(EntryDto.From).ToArray();

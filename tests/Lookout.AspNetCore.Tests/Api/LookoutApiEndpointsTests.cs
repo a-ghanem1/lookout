@@ -495,6 +495,201 @@ public sealed class LookoutApiEndpointsTests : IDisposable
         resp.Headers.CacheControl!.NoStore.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task ListEntries_SortByDuration_ReturnsSlowestFirst()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeEfWithDuration("SELECT fast", durationMs: 5.0, offsetMs: -3000),
+            MakeEfWithDuration("SELECT medium", durationMs: 150.0, offsetMs: -2000),
+            MakeEfWithDuration("SELECT slow", durationMs: 800.0, offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries?sort=duration");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await ReadListAsync(resp);
+        await app.StopAsync();
+
+        payload.Entries.Should().HaveCount(3);
+        payload.Entries[0].DurationMs.Should().Be(800.0, "slowest first");
+        payload.Entries[1].DurationMs.Should().Be(150.0);
+        payload.Entries[2].DurationMs.Should().Be(5.0);
+    }
+
+    [Fact]
+    public async Task ListEntries_MinDurationMs_FiltersOutShortEntries()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeEfWithDuration("SELECT fast", durationMs: 5.0, offsetMs: -3000),
+            MakeEfWithDuration("SELECT medium", durationMs: 150.0, offsetMs: -2000),
+            MakeEfWithDuration("SELECT slow", durationMs: 800.0, offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries?min_duration_ms=100");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await ReadListAsync(resp);
+        await app.StopAsync();
+
+        payload.Entries.Should().HaveCount(2, "only medium and slow qualify");
+        payload.Entries.Should().AllSatisfy(e => e.DurationMs.Should().BeGreaterThanOrEqualTo(100.0));
+    }
+
+    [Fact]
+    public async Task ListEntries_MultiType_ReturnsBothEfAndSql()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeEfWithDuration("SELECT ef query", durationMs: 10.0, offsetMs: -2000),
+            MakeEntry("sql", null, offsetMs: -1000),
+            MakeHttp("GET", "/ignored", 200, offsetMs: -500));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries?type=ef%2Csql");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await ReadListAsync(resp);
+        await app.StopAsync();
+
+        payload.Entries.Should().HaveCount(2, "http entry excluded; both ef and sql included");
+        payload.Entries.Select(e => e.Type).Should().BeEquivalentTo(["ef", "sql"]);
+    }
+
+    [Fact]
+    public async Task ListEntries_UrlHost_FiltersHttpOutByHost()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeHttpOut("GET", "https://api.example.com/users", 200, offsetMs: -3000),
+            MakeHttpOut("GET", "https://payments.io/charge", 201, offsetMs: -2000),
+            MakeHttpOut("GET", "https://api.example.com/orders", 200, offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries?host=api.example.com");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await ReadListAsync(resp);
+        await app.StopAsync();
+
+        payload.Entries.Should().HaveCount(2, "only api.example.com entries");
+        payload.Entries.Should().AllSatisfy(e => e.Tags["http.url.host"].Should().Be("api.example.com"));
+    }
+
+    [Fact]
+    public async Task ListEntries_ErrorsOnly_FiltersToNetworkErrors()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeHttpOut("GET", "https://ok.io/path", 200, offsetMs: -3000),
+            MakeHttpOutError("GET", "https://fail.io/path", "System.Net.Http.HttpRequestException", offsetMs: -2000),
+            MakeHttpOut("POST", "https://ok.io/create", 201, offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries?errors_only=true");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await ReadListAsync(resp);
+        await app.StopAsync();
+
+        payload.Entries.Should().ContainSingle("only the network-error entry qualifies");
+        payload.Entries[0].Tags.Should().ContainKey("http.error");
+    }
+
+    private static LookoutEntry MakeEfWithDuration(string sql, double durationMs, long offsetMs)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        var content = new EfEntryContent(
+            CommandText: sql,
+            Parameters: [],
+            DurationMs: durationMs,
+            RowsAffected: null,
+            DbContextType: null,
+            CommandType: EfCommandType.Reader,
+            Stack: []);
+
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "ef",
+            Timestamp: ts,
+            RequestId: null,
+            DurationMs: durationMs,
+            Tags: new Dictionary<string, string> { ["db.system"] = "ef" },
+            Content: JsonSerializer.Serialize(content, LookoutJson.Options));
+    }
+
+    private static LookoutEntry MakeHttpOut(string method, string url, int status, long offsetMs)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        var uri = new Uri(url);
+        var content = new OutboundHttpEntryContent(
+            Method: method,
+            Url: url,
+            StatusCode: status,
+            DurationMs: 10.0,
+            RequestHeaders: new Dictionary<string, string>(),
+            ResponseHeaders: new Dictionary<string, string>(),
+            RequestBody: null,
+            ResponseBody: null,
+            ErrorType: null,
+            ErrorMessage: null);
+
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "http-out",
+            Timestamp: ts,
+            RequestId: null,
+            DurationMs: 10.0,
+            Tags: new Dictionary<string, string>
+            {
+                ["http.method"] = method,
+                ["http.out"] = "true",
+                ["http.url.host"] = uri.Host,
+                ["http.url.path"] = uri.AbsolutePath,
+                ["http.status"] = status.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            },
+            Content: JsonSerializer.Serialize(content, LookoutJson.Options));
+    }
+
+    private static LookoutEntry MakeHttpOutError(string method, string url, string errorType, long offsetMs)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        var uri = new Uri(url);
+        var content = new OutboundHttpEntryContent(
+            Method: method,
+            Url: url,
+            StatusCode: null,
+            DurationMs: 5.0,
+            RequestHeaders: new Dictionary<string, string>(),
+            ResponseHeaders: new Dictionary<string, string>(),
+            RequestBody: null,
+            ResponseBody: null,
+            ErrorType: errorType,
+            ErrorMessage: "Connection refused");
+
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "http-out",
+            Timestamp: ts,
+            RequestId: null,
+            DurationMs: 5.0,
+            Tags: new Dictionary<string, string>
+            {
+                ["http.method"] = method,
+                ["http.out"] = "true",
+                ["http.url.host"] = uri.Host,
+                ["http.url.path"] = uri.AbsolutePath,
+                ["http.error"] = errorType,
+            },
+            Content: JsonSerializer.Serialize(content, LookoutJson.Options));
+    }
+
     private static LookoutEntry MakeEntry(string type, string? requestId, long offsetMs)
     {
         var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);

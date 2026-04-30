@@ -16,6 +16,11 @@ function qs(query: EntryListQuery): string {
   if (query.q) params.set('q', query.q);
   if (query.before !== undefined) params.set('before', String(query.before));
   if (query.limit !== undefined) params.set('limit', String(query.limit));
+  if (query.sort) params.set('sort', query.sort);
+  if (query.minDurationMs !== undefined) params.set('min_duration_ms', String(query.minDurationMs));
+  if (query.maxDurationMs !== undefined) params.set('max_duration_ms', String(query.maxDurationMs));
+  if (query.host) params.set('host', query.host);
+  if (query.errorsOnly) params.set('errors_only', 'true');
   const s = params.toString();
   return s ? `?${s}` : '';
 }

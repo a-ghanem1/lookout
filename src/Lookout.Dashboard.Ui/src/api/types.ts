@@ -164,6 +164,11 @@ export interface EntryListQuery {
   q?: string;
   before?: number;
   limit?: number;
+  sort?: 'duration' | 'timestamp';
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  host?: string;
+  errorsOnly?: boolean;
 }
 
 export interface EntryCounts {

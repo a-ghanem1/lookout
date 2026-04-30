@@ -1,5 +1,13 @@
 /** Dashboard-local formatters for durations, timestamps, and status categories. */
 
+export function formatRelative(unixMs: number): string {
+  const diff = Date.now() - unixMs;
+  if (diff < 1000) return 'just now';
+  if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  return `${Math.floor(diff / 3_600_000)}h ago`;
+}
+
 export function formatDuration(ms: number | undefined | null): string {
   if (ms === null || ms === undefined) return '—';
   if (ms < 1) return '<1ms';

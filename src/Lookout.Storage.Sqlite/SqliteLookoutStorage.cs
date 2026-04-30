@@ -141,7 +141,22 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             cmd.Parameters.AddWithValue("@q", query.Q);
         }
 
-        if (!string.IsNullOrEmpty(query.Type))
+        if (query.TypeIn is { Count: > 0 } typeIn)
+        {
+            if (typeIn.Count == 1)
+            {
+                where.Add("e.type = @type");
+                cmd.Parameters.AddWithValue("@type", typeIn[0]);
+            }
+            else
+            {
+                var pnames = Enumerable.Range(0, typeIn.Count).Select(i => $"@t{i}").ToArray();
+                where.Add($"e.type IN ({string.Join(",", pnames)})");
+                for (var ti = 0; ti < typeIn.Count; ti++)
+                    cmd.Parameters.AddWithValue($"@t{ti}", typeIn[ti]);
+            }
+        }
+        else if (!string.IsNullOrEmpty(query.Type))
         {
             where.Add("e.type = @type");
             cmd.Parameters.AddWithValue("@type", query.Type);
@@ -177,6 +192,29 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             cmd.Parameters.AddWithValue("@before", before);
         }
 
+        if (query.MinDurationMs is double minDur)
+        {
+            where.Add("e.duration_ms >= @minDur");
+            cmd.Parameters.AddWithValue("@minDur", minDur);
+        }
+
+        if (query.MaxDurationMs is double maxDur)
+        {
+            where.Add("e.duration_ms <= @maxDur");
+            cmd.Parameters.AddWithValue("@maxDur", maxDur);
+        }
+
+        if (!string.IsNullOrEmpty(query.UrlHost))
+        {
+            where.Add("LOWER(json_extract(e.tags_json, '$.\"http.url.host\"')) LIKE @urlHost");
+            cmd.Parameters.AddWithValue("@urlHost", "%" + query.UrlHost.ToLowerInvariant() + "%");
+        }
+
+        if (query.ErrorsOnly is true)
+        {
+            where.Add("json_extract(e.tags_json, '$.\"http.error\"') IS NOT NULL");
+        }
+
         if (where.Count > 0)
         {
             sql.Append("WHERE ");
@@ -184,7 +222,11 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             sql.Append(' ');
         }
 
-        sql.Append("ORDER BY e.timestamp_utc DESC, e.id DESC LIMIT @limit");
+        var orderBy = query.Sort == "duration"
+            ? "ORDER BY COALESCE(e.duration_ms, 0) DESC, e.id DESC"
+            : "ORDER BY e.timestamp_utc DESC, e.id DESC";
+        sql.Append(orderBy);
+        sql.Append(" LIMIT @limit");
         cmd.Parameters.AddWithValue("@limit", limit);
         cmd.CommandText = sql.ToString();
 
