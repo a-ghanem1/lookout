@@ -267,6 +267,36 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         return results;
     }
 
+    public async Task<(long Hits, long Misses, long Sets, long Removes)> GetCacheSummaryAsync(
+        long? fromUnixMs = null, long? toUnixMs = null, CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+
+        var where = new List<string> { "type = 'cache'" };
+        if (fromUnixMs is long from) { where.Add("timestamp_utc >= @from"); cmd.Parameters.AddWithValue("@from", from); }
+        if (toUnixMs is long to) { where.Add("timestamp_utc <= @to"); cmd.Parameters.AddWithValue("@to", to); }
+        var whereClause = $"WHERE {string.Join(" AND ", where)}";
+
+        cmd.CommandText =
+            "SELECT " +
+            "SUM(CASE WHEN json_extract(tags_json, '$.\"cache.hit\"') = 'true' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN json_extract(tags_json, '$.\"cache.hit\"') = 'false' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN json_extract(content_json, '$.operation') = 'Set' THEN 1 ELSE 0 END)," +
+            "SUM(CASE WHEN json_extract(content_json, '$.operation') = 'Remove' THEN 1 ELSE 0 END) " +
+            $"FROM entries {whereClause}";
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+            return (0, 0, 0, 0);
+
+        return (
+            reader.IsDBNull(0) ? 0 : reader.GetInt64(0),
+            reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
+            reader.IsDBNull(2) ? 0 : reader.GetInt64(2),
+            reader.IsDBNull(3) ? 0 : reader.GetInt64(3));
+    }
+
     public async Task<(long Requests, long Queries, long Exceptions, long Logs, long Cache, long HttpClients, long Jobs, long Dump)> GetCountsAsync(CancellationToken ct = default)
     {
         await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);

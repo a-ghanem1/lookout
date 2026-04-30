@@ -1,4 +1,4 @@
-import type { EntryCounts, EntryDto, EntryListQuery, EntryListResponse } from './types';
+import type { CacheSummary, EntryCounts, EntryDto, EntryListQuery, EntryListResponse } from './types';
 
 /**
  * API URLs are relative to `<base href>`, which the server injects into index.html
@@ -38,6 +38,12 @@ export async function getEntry(id: string, signal?: AbortSignal): Promise<EntryD
   const resp = await fetch(`${API_BASE}entries/${encodeURIComponent(id)}`, { signal });
   if (!resp.ok) throw new Error(`entry: ${resp.status}`);
   return (await resp.json()) as EntryDto;
+}
+
+export async function getCacheSummary(signal?: AbortSignal): Promise<CacheSummary> {
+  const resp = await fetch(`${API_BASE}entries/cache/summary`, { signal });
+  if (!resp.ok) throw new Error(`cache/summary: ${resp.status}`);
+  return (await resp.json()) as CacheSummary;
 }
 
 export async function getEntryCounts(signal?: AbortSignal): Promise<EntryCounts> {

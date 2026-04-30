@@ -1,0 +1,101 @@
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-xs-line);
+  font-family: var(--font-mono);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-inset);
+  color: var(--color-fg-default);
+  min-width: 18ch;
+}
+
+.searchInput:focus {
+  outline: 2px solid var(--color-accent-ring);
+  border-color: var(--color-accent-border);
+}
+
+.labelBadge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs-size);
+  line-height: var(--space-5);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent-fg);
+  border: 1px solid var(--color-accent-border);
+  white-space: nowrap;
+  max-width: 20ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.labelUnnamed {
+  background: var(--color-bg-muted);
+  color: var(--color-fg-subtle);
+  border-color: var(--color-border-muted);
+  font-style: italic;
+}
+
+.summaryRow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.caller {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  color: var(--color-fg-subtle);
+  flex-shrink: 0;
+}
+
+.jsonPreview {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm-size);
+  color: var(--color-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reqLink {
+  color: var(--color-accent-fg);
+  text-decoration: none;
+  font-size: var(--text-xs-size);
+}
+
+.reqLink:hover {
+  text-decoration: underline;
+}
+
+.background {
+  color: var(--color-fg-subtle);
+  font-size: var(--text-2xs-size);
+}
+
+.expandPanel {
+  padding: var(--space-2) var(--space-6) var(--space-3);
+  background: var(--color-bg-inset);
+  border-top: 1px solid var(--color-border-muted);
+}
+
+.jsonBlock {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  line-height: var(--text-sm-line);
+  color: var(--color-fg-default);
+  white-space: pre-wrap;
+  word-break: break-all;
+}

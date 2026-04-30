@@ -703,5 +703,119 @@ public sealed class LookoutApiEndpointsTests : IDisposable
             Content: "{}");
     }
 
+    [Fact]
+    public async Task CacheSummary_ReturnsZerosForEmptyDb()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries/cache/summary");
+        await app.StopAsync();
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var summary = await resp.Content.ReadFromJsonAsync<CacheSummary>(LookoutJson.Options);
+        summary.Should().NotBeNull();
+        summary!.Hits.Should().Be(0);
+        summary.Misses.Should().Be(0);
+        summary.Sets.Should().Be(0);
+        summary.Removes.Should().Be(0);
+        summary.HitRatio.Should().Be(0.0);
+    }
+
+    [Fact]
+    public async Task CacheSummary_ReturnsCorrectCountsAcrossMixedEntries()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeCache("Get", "user:1", hit: true, system: "memory", offsetMs: -5000),
+            MakeCache("Get", "user:2", hit: true, system: "memory", offsetMs: -4000),
+            MakeCache("Get", "user:3", hit: false, system: "distributed", offsetMs: -3000),
+            MakeCache("Set", "user:4", hit: null, system: "memory", offsetMs: -2000),
+            MakeCache("Remove", "user:5", hit: null, system: "memory", offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries/cache/summary");
+        await app.StopAsync();
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var summary = await resp.Content.ReadFromJsonAsync<CacheSummary>(LookoutJson.Options);
+        summary.Should().NotBeNull();
+        summary!.Hits.Should().Be(2, "two successful gets");
+        summary.Misses.Should().Be(1, "one cache miss");
+        summary.Sets.Should().Be(1);
+        summary.Removes.Should().Be(1);
+        summary.HitRatio.Should().BeApproximately(2.0 / 3.0, precision: 0.001);
+    }
+
+    [Fact]
+    public async Task CacheSummary_HitRatioIsZeroWhenNoGetOperations()
+    {
+        var dbPath = TempDbPath();
+        await SeedAsync(dbPath,
+            MakeCache("Set", "key:a", hit: null, system: "memory", offsetMs: -2000),
+            MakeCache("Remove", "key:b", hit: null, system: "memory", offsetMs: -1000));
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries/cache/summary");
+        await app.StopAsync();
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var summary = await resp.Content.ReadFromJsonAsync<CacheSummary>(LookoutJson.Options);
+        summary.Should().NotBeNull();
+        summary!.Hits.Should().Be(0);
+        summary.Misses.Should().Be(0);
+        summary.Sets.Should().Be(1);
+        summary.Removes.Should().Be(1);
+        summary.HitRatio.Should().Be(0.0, "no get operations → ratio is 0");
+    }
+
+    [Fact]
+    public async Task CacheSummary_ResponseHasNoCacheHeader()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync("/lookout/api/entries/cache/summary");
+        await app.StopAsync();
+
+        resp.Headers.CacheControl.Should().NotBeNull();
+        resp.Headers.CacheControl!.NoStore.Should().BeTrue();
+    }
+
+    private static LookoutEntry MakeCache(string operation, string key, bool? hit, string system, long offsetMs)
+    {
+        var ts = DateTimeOffset.UtcNow.AddMilliseconds(offsetMs);
+        var content = new CacheEntryContent(
+            Operation: operation,
+            Key: key,
+            Hit: hit,
+            DurationMs: 0.5,
+            ValueType: null,
+            ValueBytes: null);
+
+        var tags = new Dictionary<string, string>
+        {
+            ["cache.system"] = system,
+            ["cache.key"] = key,
+        };
+        if (hit.HasValue)
+            tags["cache.hit"] = hit.Value ? "true" : "false";
+
+        return new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "cache",
+            Timestamp: ts,
+            RequestId: null,
+            DurationMs: 0.5,
+            Tags: tags,
+            Content: JsonSerializer.Serialize(content, LookoutJson.Options));
+    }
+
     private static string PathOf(EntryDto dto) => dto.Tags["http.path"];
 }

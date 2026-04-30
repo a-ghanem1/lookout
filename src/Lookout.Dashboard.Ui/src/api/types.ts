@@ -171,6 +171,14 @@ export interface EntryListQuery {
   errorsOnly?: boolean;
 }
 
+export interface CacheSummary {
+  hits: number;
+  misses: number;
+  sets: number;
+  removes: number;
+  hitRatio: number;
+}
+
 export interface EntryCounts {
   requests: number;
   queries: number;

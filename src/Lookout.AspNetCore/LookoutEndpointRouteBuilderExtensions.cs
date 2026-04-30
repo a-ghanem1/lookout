@@ -27,6 +27,7 @@ public static class LookoutEndpointRouteBuilderExtensions
 
         group.MapGet("/api/entries", ListEntriesAsync);
         group.MapGet("/api/entries/counts", GetEntryCountsAsync);
+        group.MapGet("/api/entries/cache/summary", GetCacheSummaryAsync);
         group.MapGet("/api/entries/{id:guid}", GetEntryAsync);
         group.MapGet("/api/requests/{id}", GetRequestEntriesAsync);
 
@@ -143,6 +144,20 @@ public static class LookoutEndpointRouteBuilderExtensions
             counts.HttpClients,
             counts.Jobs,
             counts.Dump));
+    }
+
+    private static async Task<IResult> GetCacheSummaryAsync(
+        HttpContext ctx,
+        SqliteLookoutStorage storage,
+        long? from = null,
+        long? to = null)
+    {
+        var (hits, misses, sets, removes) = await storage
+            .GetCacheSummaryAsync(from, to, ctx.RequestAborted).ConfigureAwait(false);
+        var total = hits + misses;
+        var hitRatio = total > 0 ? (double)hits / total : 0.0;
+        ctx.Response.Headers.CacheControl = "no-store";
+        return Json(new CacheSummary(hits, misses, sets, removes, hitRatio));
     }
 
     private static async Task<IResult> ListEntriesAsync(
