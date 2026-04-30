@@ -246,4 +246,46 @@ describe('CachePage', () => {
       expect(screen.getAllByText('Background').length).toBeGreaterThan(0);
     });
   });
+
+  it('truncates long valueType in expand panel and keeps full type in title', async () => {
+    const longType = '<>f__AnonymousType9`3[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('cache/summary')) {
+          return new Response(JSON.stringify(defaultSummary), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            entries: [makeCacheEntry('type-id', { operation: 'Get', key: 'mykey', hit: true, valueType: longType })],
+            nextBefore: null,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }) as unknown as typeof fetch,
+    );
+
+    const user = userEvent.setup();
+    render(<CachePage />);
+
+    await waitFor(() => expect(screen.getByText('mykey')).toBeInTheDocument());
+
+    const rows = screen.getAllByRole('button');
+    const entryRow = rows.find((r) => r.textContent?.includes('mykey'));
+    if (entryRow) await user.click(entryRow);
+
+    await waitFor(() => {
+      const panel = screen.getByTestId('expand-type-id');
+      const typeCode = panel.querySelector('code[title]');
+      expect(typeCode).toBeInTheDocument();
+      expect(typeCode!.getAttribute('title')).toBe(longType);
+      // Displayed text must be truncated (ends with …)
+      expect(typeCode!.textContent).toMatch(/…$/);
+      expect(typeCode!.textContent!.length).toBeLessThan(longType.length);
+    });
+  });
 });

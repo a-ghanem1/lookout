@@ -44,6 +44,11 @@ function truncateKey(key: string): string {
   return `${key.slice(0, 28)}…${key.slice(-28)}`;
 }
 
+function truncateType(type: string): string {
+  if (type.length <= 60) return type;
+  return `${type.slice(0, 57)}…`;
+}
+
 export function CachePage({ id: _id }: { id?: string } = {}) {
   const [kind, setKind] = useState<Kind>('all');
   const [outcome, setOutcome] = useState<Outcome>('all');
@@ -223,7 +228,9 @@ export function CachePage({ id: _id }: { id?: string } = {}) {
                 {content.valueType && (
                   <div className={styles.expandRow}>
                     <span className={styles.expandLabel}>Type</span>
-                    <code className={styles.expandValue}>{content.valueType}</code>
+                    <code className={styles.expandValue} title={content.valueType}>
+                      {truncateType(content.valueType)}
+                    </code>
                   </div>
                 )}
                 {content.valueBytes != null && (
