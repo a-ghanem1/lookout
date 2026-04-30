@@ -1,0 +1,111 @@
+.root {
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+.title {
+  font-size: var(--text-xs-size);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.logsToggle {
+  font-size: var(--text-2xs-size);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  background: transparent;
+  color: var(--color-fg-subtle);
+  cursor: pointer;
+}
+
+.logsToggle:hover {
+  color: var(--color-fg-default);
+}
+
+.svgWrap {
+  position: relative;
+  overflow-x: auto;
+}
+
+.svg {
+  width: 100%;
+  min-width: 300px;
+  display: block;
+  background: var(--color-bg-canvas);
+}
+
+.rowLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-fg-subtle);
+}
+
+.bar {
+  cursor: pointer;
+  transition: opacity var(--duration-hover) var(--ease-out);
+}
+
+.bar:hover {
+  opacity: 1 !important;
+}
+
+.axisLine {
+  stroke: var(--color-border-muted);
+  stroke-width: 1;
+}
+
+.axisLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--color-fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--color-bg-overlay);
+  color: var(--color-fg-onAccent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-2);
+  max-width: 240px;
+  z-index: 10;
+  font-size: var(--text-xs-size);
+}
+
+.tooltipType {
+  font-weight: var(--font-weight-medium);
+  margin-bottom: 2px;
+}
+
+.tooltipDuration {
+  font-family: var(--font-mono);
+  color: var(--color-fg-subtle);
+  margin-bottom: 2px;
+  font-size: var(--text-2xs-size);
+}
+
+.tooltipSummary {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs-size);
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
