@@ -1,11 +1,63 @@
 import { Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { getCacheSummary, listEntries } from '../../api/client';
-import type { CacheEntryContent, CacheSummary, EntryDto } from '../../api/types';
+import { getCacheByKey, getCacheSummary, listEntries } from '../../api/client';
+import type { CacheByKeyStats, CacheEntryContent, CacheSummary, EntryDto } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
+import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatDuration, formatRelative } from '../../format';
 import styles from './CachePage.module.css';
+
+function CacheKeyHitRatio() {
+  const [stats, setStats] = useState<CacheByKeyStats[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getCacheByKey(10, controller.signal)
+      .then((rows) => { if (Array.isArray(rows)) setStats(rows.slice(0, 10)); })
+      .catch(() => {/* ignore */});
+    return () => controller.abort();
+  }, []);
+
+  if (stats.length === 0) return null;
+
+  return (
+    <div className={styles.keyBreakdownWrap} data-testid="cache-key-breakdown">
+      <div className={styles.keyBreakdownTitle}>Per-key hit ratio (top 10)</div>
+      <table className={styles.keyBreakdownTable}>
+        <thead>
+          <tr>
+            <th className={styles.keyBreakdownTh}>Key</th>
+            <th className={styles.keyBreakdownTh}>Hits</th>
+            <th className={styles.keyBreakdownTh}>Misses</th>
+            <th className={styles.keyBreakdownTh}>Ratio</th>
+          </tr>
+        </thead>
+        <tbody>
+          {stats.map((s) => (
+            <tr key={s.key} className={styles.keyBreakdownRow}>
+              <td className={styles.keyBreakdownKey} title={s.key}>
+                {s.key.length > 40 ? `${s.key.slice(0, 18)}…${s.key.slice(-18)}` : s.key}
+              </td>
+              <td className={styles.keyBreakdownCell}>{s.hits}</td>
+              <td className={styles.keyBreakdownCell}>{s.misses}</td>
+              <td className={styles.keyBreakdownCell}>
+                <div className={styles.ratioBarWrap}>
+                  <div
+                    className={styles.ratioBar}
+                    style={{ width: `${Math.round(s.hitRatio * 100)}%` }}
+                  />
+                  <span>{Math.round(s.hitRatio * 100)}%</span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 type Kind = 'all' | 'mem' | 'dist';
 type Outcome = 'all' | 'hit' | 'miss' | 'set' | 'remove';
@@ -50,6 +102,7 @@ function truncateType(type: string): string {
 }
 
 export function CachePage({ id: _id }: { id?: string } = {}) {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [kind, setKind] = useState<Kind>('all');
   const [outcome, setOutcome] = useState<Outcome>('all');
   const [keySearch, setKeySearch] = useState('');
@@ -72,7 +125,7 @@ export function CachePage({ id: _id }: { id?: string } = {}) {
     setError(undefined);
 
     Promise.all([
-      listEntries({ type: 'cache', q: debouncedKeySearch || undefined, limit: 200 }, controller.signal),
+      listEntries({ type: 'cache', q: debouncedKeySearch || undefined, tags: activeTags.length > 0 ? activeTags : undefined, limit: 200 }, controller.signal),
       getCacheSummary(controller.signal),
     ])
       .then(([resp, sum]) => {
@@ -88,7 +141,7 @@ export function CachePage({ id: _id }: { id?: string } = {}) {
       });
 
     return () => controller.abort();
-  }, [debouncedKeySearch, retryCount]);
+  }, [debouncedKeySearch, activeTags, retryCount]);
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -113,6 +166,7 @@ export function CachePage({ id: _id }: { id?: string } = {}) {
 
   const filterSlot = (
     <div className={styles.filterBarWrap}>
+      <CacheKeyHitRatio />
       {summary !== null && (
         <div className={styles.hitRatioBar} data-testid="cache-hit-ratio">
           <span className={styles.hitCount}>Hits {summary.hits.toLocaleString()}</span>
@@ -155,6 +209,7 @@ export function CachePage({ id: _id }: { id?: string } = {}) {
           aria-label="Search cache key"
         />
       </div>
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
     </div>
   );
 

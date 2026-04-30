@@ -5,6 +5,18 @@
   flex-wrap: wrap;
 }
 
+.histogramWrap {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.histogramLabel {
+  font-size: var(--text-2xs-size);
+  color: var(--color-fg-subtle);
+  white-space: nowrap;
+}
+
 .filterGroup {
   display: flex;
   gap: var(--space-1);
