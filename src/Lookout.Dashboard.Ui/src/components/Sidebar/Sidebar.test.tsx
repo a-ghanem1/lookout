@@ -31,8 +31,9 @@ describe('Sidebar', () => {
       <Sidebar
         route={{ name: 'list' }}
         counts={ZERO_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
@@ -56,8 +57,9 @@ describe('Sidebar', () => {
       <Sidebar
         route={{ name: 'queries' }}
         counts={ZERO_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
@@ -73,8 +75,9 @@ describe('Sidebar', () => {
       <Sidebar
         route={{ name: 'list' }}
         counts={ZERO_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
     expect(screen.getByRole('link', { name: /requests/i, current: 'page' })).toBeInTheDocument();
@@ -83,8 +86,9 @@ describe('Sidebar', () => {
       <Sidebar
         route={{ name: 'detail', id: 'abc' }}
         counts={ZERO_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
     expect(screen.getByRole('link', { name: /requests/i, current: 'page' })).toBeInTheDocument();
@@ -95,8 +99,9 @@ describe('Sidebar', () => {
       <Sidebar
         route={{ name: 'list' }}
         counts={ALL_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
@@ -115,8 +120,9 @@ describe('Sidebar', () => {
       <Sidebar
         route={{ name: 'list' }}
         counts={ZERO_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
@@ -129,8 +135,9 @@ describe('Sidebar', () => {
       <Sidebar
         route={{ name: 'list' }}
         counts={ZERO_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
@@ -142,16 +149,31 @@ describe('Sidebar', () => {
     expect(svg).not.toBeNull();
   });
 
-  it('renders the theme toggle button', () => {
+  it('renders the theme cycle button', () => {
     render(
       <Sidebar
         route={{ name: 'list' }}
         counts={ZERO_COUNTS}
-        theme="dark"
-        onThemeToggle={vi.fn()}
+        themeMode="dark"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole('button', { name: /switch to light theme/i })).toBeInTheDocument();
+    expect(screen.getByTestId('theme-cycle-button')).toBeInTheDocument();
+  });
+
+  it('renders the search button', () => {
+    render(
+      <Sidebar
+        route={{ name: 'list' }}
+        counts={ZERO_COUNTS}
+        themeMode="system"
+        onThemeCycle={vi.fn()}
+        onSearch={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('sidebar-search-button')).toBeInTheDocument();
   });
 });

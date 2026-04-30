@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CacheIcon } from '../Icons/section/CacheIcon';
 import { DumpIcon } from '../Icons/section/DumpIcon';
@@ -9,15 +10,29 @@ import { QueriesIcon } from '../Icons/section/QueriesIcon';
 import { RequestsIcon } from '../Icons/section/RequestsIcon';
 import { LookoutLogo } from '../LookoutLogo';
 import type { EntryCounts } from '../../api/types';
+import { deleteAllEntries } from '../../api/client';
 import type { Route } from '../../router/hashRouter';
 import { href } from '../../router/hashRouter';
+import type { ThemeMode } from '../../theme/useTheme';
 import styles from './Sidebar.module.css';
+
+const IDE_STORAGE_KEY = 'lookout:ide';
+type IdePreference = 'none' | 'vscode' | 'rider';
+
+function readIde(): IdePreference {
+  try {
+    const v = localStorage.getItem(IDE_STORAGE_KEY);
+    if (v === 'vscode' || v === 'rider') return v;
+  } catch { /* ignore */ }
+  return 'none';
+}
 
 interface SidebarProps {
   route: Route;
   counts: EntryCounts;
-  theme: 'light' | 'dark';
-  onThemeToggle: () => void;
+  themeMode: ThemeMode;
+  onThemeCycle: () => void;
+  onSearch: () => void;
 }
 
 interface NavItem {
@@ -28,7 +43,50 @@ interface NavItem {
   activeFor: Route['name'][];
 }
 
-export function Sidebar({ route, counts, theme, onThemeToggle }: SidebarProps) {
+const THEME_LABELS: Record<ThemeMode, string> = {
+  system: 'System',
+  light: 'Light',
+  dark: 'Dark',
+};
+
+const THEME_NEXT: Record<ThemeMode, string> = {
+  system: 'light',
+  light: 'dark',
+  dark: 'system',
+};
+
+export function Sidebar({ route, counts, themeMode, onThemeCycle, onSearch }: SidebarProps) {
+  const [ide, setIde] = useState<IdePreference>(readIde);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleClear = async () => {
+    setClearing(true);
+    try {
+      const result = await deleteAllEntries();
+      setShowClearModal(false);
+      showToast(`Cleared ${result.deleted} entries.`);
+    } catch {
+      showToast('Clear failed. Try again.');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const handleIdeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = e.target.value as IdePreference;
+    setIde(v);
+    try { localStorage.setItem(IDE_STORAGE_KEY, v); } catch { /* ignore */ }
+  };
+
   const items: NavItem[] = [
     {
       label: 'Requests',
@@ -89,40 +147,95 @@ export function Sidebar({ route, counts, theme, onThemeToggle }: SidebarProps) {
   ];
 
   return (
-    <aside className={styles.sidebar} aria-label="Navigation">
-      <a
-        className={styles.brand}
-        href="#/requests"
-        aria-label="Lookout — diagnostics for ASP.NET Core"
-      >
-        <LookoutLogo className={styles.brandMark} aria-hidden="true" aria-label={undefined} />
-        <span className={styles.brandWordmark}>lookout</span>
-      </a>
+    <>
+      <aside className={styles.sidebar} aria-label="Navigation">
+        <a
+          className={styles.brand}
+          href="#/requests"
+          aria-label="Lookout — diagnostics for ASP.NET Core"
+        >
+          <LookoutLogo className={styles.brandMark} aria-hidden="true" aria-label={undefined} />
+          <span className={styles.brandWordmark}>lookout</span>
+        </a>
 
-      <nav className={styles.nav} aria-label="Sections">
-        {items.map((item) => (
-          <SidebarItem
-            key={item.label}
-            label={item.label}
-            icon={item.icon}
-            itemHref={href(item.route)}
-            count={item.count}
-            active={item.activeFor.includes(route.name)}
-          />
-        ))}
-      </nav>
-
-      <div className={styles.footer}>
         <button
           type="button"
-          className={styles.themeButton}
-          onClick={onThemeToggle}
-          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          className={styles.searchButton}
+          onClick={onSearch}
+          data-testid="sidebar-search-button"
+          aria-label="Search (⌘K)"
         >
-          {theme === 'dark' ? 'Light' : 'Dark'}
+          <span className={styles.searchIcon}>⌕</span>
+          <span className={styles.searchLabel}>Search…</span>
+          <kbd className={styles.searchKbd}>⌘K</kbd>
         </button>
-      </div>
-    </aside>
+
+        <nav className={styles.nav} aria-label="Sections">
+          {items.map((item) => (
+            <SidebarItem
+              key={item.label}
+              label={item.label}
+              icon={item.icon}
+              itemHref={href(item.route)}
+              count={item.count}
+              active={item.activeFor.includes(route.name)}
+            />
+          ))}
+        </nav>
+
+        <div className={styles.footer}>
+          <div className={styles.footerRow}>
+            <button
+              type="button"
+              className={styles.themeButton}
+              onClick={onThemeCycle}
+              aria-label={`Theme: ${THEME_LABELS[themeMode]}. Click to switch to ${THEME_NEXT[themeMode]}`}
+              data-testid="theme-cycle-button"
+            >
+              {themeMode === 'system' ? '◐' : themeMode === 'light' ? '☀' : '☽'}
+              <span>{THEME_LABELS[themeMode]}</span>
+            </button>
+            <button
+              type="button"
+              className={styles.clearButton}
+              onClick={() => setShowClearModal(true)}
+              aria-label="Clear all captured entries"
+              data-testid="clear-all-button"
+            >
+              Clear
+            </button>
+          </div>
+          <div className={styles.ideRow}>
+            <span className={styles.ideLabel}>IDE</span>
+            <select
+              className={styles.ideSelect}
+              value={ide}
+              onChange={handleIdeChange}
+              aria-label="IDE preference for stack frame links"
+              data-testid="ide-select"
+            >
+              <option value="none">None</option>
+              <option value="vscode">VS Code</option>
+              <option value="rider">Rider</option>
+            </select>
+          </div>
+        </div>
+      </aside>
+
+      {showClearModal && (
+        <ClearModal
+          onConfirm={handleClear}
+          onCancel={() => setShowClearModal(false)}
+          clearing={clearing}
+        />
+      )}
+
+      {toast && (
+        <div className={styles.toast} role="status" data-testid="toast">
+          {toast}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -147,5 +260,50 @@ function SidebarItem({ label, icon, itemHref, count, active }: SidebarItemProps)
         {count}
       </span>
     </a>
+  );
+}
+
+function ClearModal({
+  onConfirm,
+  onCancel,
+  clearing,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+  clearing: boolean;
+}) {
+  return (
+    <div className={styles.modalBackdrop} onClick={onCancel}>
+      <div
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="clear-modal-title"
+        data-testid="clear-modal"
+      >
+        <h2 id="clear-modal-title" className={styles.modalTitle}>Clear all entries?</h2>
+        <p className={styles.modalBody}>This cannot be undone.</p>
+        <div className={styles.modalActions}>
+          <button
+            type="button"
+            className={styles.modalCancel}
+            onClick={onCancel}
+            disabled={clearing}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={styles.modalConfirm}
+            onClick={onConfirm}
+            disabled={clearing}
+            data-testid="clear-modal-confirm"
+          >
+            {clearing ? 'Clearing…' : 'Clear all'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
