@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { getRequestEntries } from '../api/client';
 import type {
   CacheEntryContent,
@@ -27,6 +27,8 @@ import styles from './RequestDetail.module.css';
 const IDE_STORAGE_KEY = 'lookout:ide';
 type IdePreference = 'none' | 'vscode' | 'rider';
 
+const IdeContext = createContext<IdePreference>('none');
+
 function readIde(): IdePreference {
   try {
     const v = localStorage.getItem(IDE_STORAGE_KEY);
@@ -35,8 +37,7 @@ function readIde(): IdePreference {
   return 'none';
 }
 
-function ideUrl(file: string, line: number | null | undefined): string | null {
-  const ide = readIde();
+function ideUrl(ide: IdePreference, file: string, line: number | null | undefined): string | null {
   const l = line ?? 1;
   if (ide === 'vscode') return `vscode://file/${file}:${l}`;
   if (ide === 'rider') return `idea://open?file=${encodeURIComponent(file)}&line=${l}`;
@@ -88,8 +89,14 @@ export function RequestDetail({ id }: { id: string }) {
 
 export function DetailBody({ entries }: { entries: EntryDto[] }) {
   const http = entries.find((e) => e.type === 'http');
-  const [showLogs, setShowLogs] = useState(false);
   const [curlCopied, setCurlCopied] = useState(false);
+  const [ide, setIde] = useState<IdePreference>(readIde);
+
+  useEffect(() => {
+    const handler = (e: Event) => setIde((e as CustomEvent<IdePreference>).detail);
+    window.addEventListener('lookout:ide-changed', handler);
+    return () => window.removeEventListener('lookout:ide-changed', handler);
+  }, []);
 
   if (!http) {
     return (
@@ -155,6 +162,7 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
   }
 
   return (
+    <IdeContext.Provider value={ide}>
     <div className={styles.root} data-testid="request-detail">
       <a className={styles.back} href="#/">
         ← Back to requests
@@ -190,8 +198,6 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
       <RequestTimeline
         httpEntry={http}
         childEntries={childEntries}
-        showLogs={showLogs}
-        onToggleLogs={() => setShowLogs((v) => !v)}
         onScrollToEntry={onScrollToEntry}
       />
 
@@ -215,6 +221,7 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
         )}
       </div>
     </div>
+    </IdeContext.Provider>
   );
 }
 
@@ -587,6 +594,7 @@ function EfParameters({ parameters }: { parameters: DbContent['parameters'] }) {
 }
 
 function EfStack({ stack }: { stack: EfStackFrame[] }) {
+  const ide = useContext(IdeContext);
   if (!stack || stack.length === 0) {
     return (
       <div>
@@ -600,7 +608,7 @@ function EfStack({ stack }: { stack: EfStackFrame[] }) {
       <div className={styles.metaLabel}>Stack</div>
       <ol className={styles.efStack}>
         {stack.map((f, i) => {
-          const link = f.file ? ideUrl(f.file, f.line) : null;
+          const link = f.file ? ideUrl(ide, f.file, f.line) : null;
           return (
             <li key={i} className={styles.efStackFrame}>
               <span className={styles.efStackMethod}>{f.method}</span>
@@ -708,6 +716,13 @@ function OutboundHttpRow({ entry }: { entry: EntryDto }) {
           {content?.responseBody ? (
             <BodySection title="Response body" body={content.responseBody} />
           ) : null}
+          <a
+            href={`#/http-clients/${encodeURIComponent(entry.id)}`}
+            className={styles.jobViewLink}
+            data-testid="http-out-view-link"
+          >
+            View full details →
+          </a>
         </div>
       ) : null}
     </li>
@@ -1013,10 +1028,11 @@ function DumpSection({ entries }: { entries: EntryDto[] }) {
 
 function DumpRow({ entry }: { entry: EntryDto }) {
   const [open, setOpen] = useState(false);
+  const ide = useContext(IdeContext);
   const content = entry.content as DumpEntryContent;
   const label = content?.label;
   const fileName = callerBasename(content?.callerFile ?? '');
-  const sourceLink = content?.callerFile ? ideUrl(content.callerFile, content.callerLine) : null;
+  const sourceLink = content?.callerFile ? ideUrl(ide, content.callerFile, content.callerLine) : null;
 
   return (
     <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="dump-row">

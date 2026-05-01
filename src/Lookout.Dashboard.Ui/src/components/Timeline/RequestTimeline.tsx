@@ -8,17 +8,20 @@ const ROW_TYPES = [
   { key: 'http-out', label: 'HTTP', types: ['http-out'], colorVar: '--color-accent-fg' },
   { key: 'cache', label: 'Cache', types: ['cache'], colorVar: '--color-success-fg' },
   { key: 'exception', label: 'Exc', types: ['exception'], colorVar: '--color-error-fg' },
+  { key: 'log', label: 'Log', types: ['log'], colorVar: '--color-warn-fg' },
   { key: 'dump', label: 'Dump', types: ['dump'], colorVar: '--color-fg-subtle' },
   { key: 'job', label: 'Jobs', types: ['job-enqueue', 'job-execution'], colorVar: '--color-warn-fg' },
 ];
+
+const TOOLTIP_W = 252;
 
 const ROW_HEIGHT = 20;
 const LABEL_WIDTH = 48;
 const PAD_RATIO = 0.05;
 
 interface BarTooltip {
-  x: number;
-  y: number;
+  clientX: number;
+  clientY: number;
   label: string;
   duration: string;
   summary: string;
@@ -59,16 +62,12 @@ function entryTypeSummary(entry: EntryDto): string {
 interface RequestTimelineProps {
   httpEntry: EntryDto;
   childEntries: EntryDto[];
-  showLogs?: boolean;
-  onToggleLogs?: () => void;
   onScrollToEntry?: (id: string) => void;
 }
 
 export function RequestTimeline({
   httpEntry,
   childEntries,
-  showLogs = false,
-  onToggleLogs,
   onScrollToEntry,
 }: RequestTimelineProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -78,12 +77,8 @@ export function RequestTimeline({
   const requestDuration = httpEntry.durationMs ?? 0;
   const requestEnd = requestStart + requestDuration;
 
-  const allEntries = showLogs
-    ? childEntries
-    : childEntries.filter((e) => e.type !== 'log');
-
   const activeRows = ROW_TYPES.filter((row) =>
-    allEntries.some((e) => row.types.includes(e.type)),
+    childEntries.some((e) => row.types.includes(e.type)),
   );
 
   if (activeRows.length === 0 || requestDuration <= 0) return null;
@@ -105,16 +100,6 @@ export function RequestTimeline({
     <div className={styles.root} data-testid="request-timeline">
       <div className={styles.header}>
         <span className={styles.title}>Timeline</span>
-        {onToggleLogs && (
-          <button
-            type="button"
-            className={styles.logsToggle}
-            onClick={onToggleLogs}
-            data-testid="timeline-show-logs"
-          >
-            {showLogs ? 'Hide logs' : 'Show logs'}
-          </button>
-        )}
       </div>
 
       <div className={styles.svgWrap}>
@@ -140,7 +125,7 @@ export function RequestTimeline({
 
           {/* Bars */}
           {activeRows.map((row, ri) => {
-            const rowEntries = allEntries.filter((e) => row.types.includes(e.type));
+            const rowEntries = childEntries.filter((e) => row.types.includes(e.type));
             return (
               <g key={row.key} transform={`translate(${LABEL_WIDTH},0)`}>
                 {rowEntries.map((entry) => {
@@ -158,11 +143,9 @@ export function RequestTimeline({
                       style={{ fill: `var(${row.colorVar})`, opacity: 0.85 }}
                       className={styles.bar}
                       onMouseEnter={(e) => {
-                        const rect = svgRef.current?.getBoundingClientRect();
-                        if (!rect) return;
                         setTooltip({
-                          x: e.clientX - rect.left,
-                          y: ri * ROW_HEIGHT,
+                          clientX: e.clientX,
+                          clientY: e.clientY,
                           label: row.label,
                           duration: formatDuration(entry.durationMs),
                           summary: entryTypeSummary(entry),
@@ -198,7 +181,12 @@ export function RequestTimeline({
         {tooltip && (
           <div
             className={styles.tooltip}
-            style={{ left: tooltip.x + 12, top: tooltip.y }}
+            style={{
+              left: tooltip.clientX + 12 + TOOLTIP_W > window.innerWidth
+                ? tooltip.clientX - TOOLTIP_W - 12
+                : tooltip.clientX + 12,
+              top: tooltip.clientY - 20,
+            }}
           >
             <div className={styles.tooltipType}>{tooltip.label}</div>
             <div className={styles.tooltipDuration}>{tooltip.duration}</div>

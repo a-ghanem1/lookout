@@ -89,14 +89,20 @@ public sealed class LookoutHttpClientHandlerTests
     // ── body capture ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task BodyCapture_OffByDefault_NullBodies()
+    public async Task BodyCapture_WhenDisabled_NullBodies()
     {
-        var (handler, captured) = Build(respond: _ =>
-        {
-            var r = new HttpResponseMessage(HttpStatusCode.OK);
-            r.Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json");
-            return r;
-        });
+        var (handler, captured) = Build(
+            configure: o =>
+            {
+                o.Http.CaptureOutboundRequestBody = false;
+                o.Http.CaptureOutboundResponseBody = false;
+            },
+            respond: _ =>
+            {
+                var r = new HttpResponseMessage(HttpStatusCode.OK);
+                r.Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json");
+                return r;
+            });
 
         var req = new HttpRequestMessage(HttpMethod.Post, "http://example.com/api")
         {

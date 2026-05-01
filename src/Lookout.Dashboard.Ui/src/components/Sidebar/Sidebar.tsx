@@ -85,6 +85,7 @@ export function Sidebar({ route, counts, themeMode, onThemeCycle, onSearch }: Si
     const v = e.target.value as IdePreference;
     setIde(v);
     try { localStorage.setItem(IDE_STORAGE_KEY, v); } catch { /* ignore */ }
+    window.dispatchEvent(new CustomEvent('lookout:ide-changed', { detail: v }));
   };
 
   const items: NavItem[] = [
