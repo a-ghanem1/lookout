@@ -7,7 +7,6 @@ namespace Lookout.AspNetCore;
 
 internal sealed class LookoutFlusherHostedService : BackgroundService
 {
-    private const int BatchSize = 100;
     private const int ShutdownDrainTimeoutMs = 5_000;
 
     private readonly ChannelLookoutRecorder _recorder;
@@ -61,10 +60,10 @@ internal sealed class LookoutFlusherHostedService : BackgroundService
                 return;
             }
 
-            var batch = new List<LookoutEntry>(BatchSize) { entry };
+            var batch = new List<LookoutEntry>(_options.FlushBatchSize) { entry };
 
             // Greedily drain any already-queued items without blocking.
-            while (batch.Count < BatchSize && _recorder.Reader.TryRead(out var next))
+            while (batch.Count < _options.FlushBatchSize && _recorder.Reader.TryRead(out var next))
                 batch.Add(next);
 
             // Never cancel in-progress writes with stoppingToken — let the write
@@ -80,8 +79,8 @@ internal sealed class LookoutFlusherHostedService : BackgroundService
         {
             while (_recorder.Reader.TryRead(out var entry))
             {
-                var batch = new List<LookoutEntry>(BatchSize) { entry };
-                while (batch.Count < BatchSize && _recorder.Reader.TryRead(out var next))
+                var batch = new List<LookoutEntry>(_options.FlushBatchSize) { entry };
+                while (batch.Count < _options.FlushBatchSize && _recorder.Reader.TryRead(out var next))
                     batch.Add(next);
 
                 await WriteBatchAsync(batch, cts.Token).ConfigureAwait(false);

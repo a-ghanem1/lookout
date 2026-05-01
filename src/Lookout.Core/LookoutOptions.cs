@@ -41,6 +41,13 @@ public sealed class LookoutOptions
     public int ChannelCapacity { get; set; } = 10_000;
 
     /// <summary>
+    /// Maximum number of entries written to storage in a single transaction per flusher cycle.
+    /// Higher values reduce SQLite transaction overhead; lower values reduce per-write latency.
+    /// Default: 50.
+    /// </summary>
+    public int FlushBatchSize { get; set; } = 50;
+
+    /// <summary>
     /// Callback invoked on the request path to apply custom tags to each entry before enqueue.
     /// The second argument is a mutable copy of the entry's tag dictionary; mutate it freely.
     /// </summary>

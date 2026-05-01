@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Lookout.Core;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -19,9 +20,9 @@ public sealed class ChannelLookoutRecorderTests : IDisposable
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private static ChannelLookoutRecorder Build(int capacity) =>
+    private static ChannelLookoutRecorder Build(int capacity, ILogger<ChannelLookoutRecorder>? logger = null) =>
         new(Options.Create(new LookoutOptions { ChannelCapacity = capacity }),
-            NullLogger<ChannelLookoutRecorder>.Instance);
+            logger ?? NullLogger<ChannelLookoutRecorder>.Instance);
 
     private static LookoutEntry MakeEntry(string type = "test") =>
         new(Guid.NewGuid(), type, DateTimeOffset.UtcNow, null, null,
@@ -117,4 +118,41 @@ public sealed class ChannelLookoutRecorderTests : IDisposable
 
         recorder.DropCount.Should().Be(2);
     }
+
+    // ── warning throttle ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Record_SustainedOverflow_EmitsAtMostOneWarningWithinOneSecond()
+    {
+        // All 50 drops happen in <<1 ms — only one warning should fire.
+        var logger = new CapturingLogger<ChannelLookoutRecorder>();
+        using var recorder = Build(capacity: 1, logger);
+
+        recorder.Record(MakeEntry()); // fills to capacity
+
+        for (var i = 0; i < 50; i++)
+            recorder.Record(MakeEntry()); // every call is a drop
+
+        recorder.DropCount.Should().Be(50);
+
+        logger.Warnings.Should().HaveCount(1,
+            "the Stopwatch gate must suppress repeated warnings within a 1-second window");
+        logger.Warnings[0].Should().Contain("capture pipeline is behind");
+    }
+}
+
+/// <summary>Captures log messages for assertion without pulling in a test-logging package.</summary>
+file sealed class CapturingLogger<T> : ILogger<T>
+{
+    public List<string> Warnings { get; } = [];
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+        Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        if (logLevel >= LogLevel.Warning)
+            Warnings.Add(formatter(state, exception));
+    }
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 }

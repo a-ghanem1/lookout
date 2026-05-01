@@ -62,6 +62,27 @@ public sealed class LookoutFlusherTests : IDisposable
     }
 
     [Fact]
+    public async Task Record200Entries_AllPersisted_NoBatchBoundaryLoss()
+    {
+        // 200 entries = 4 batches at the default FlushBatchSize=50.
+        // Verifies no partial-batch loss across multiple flush cycles and on shutdown.
+        var dbPath = TempDbPath();
+        await using var app = BuildTestApp(dbPath);
+        await app.StartAsync();
+
+        var recorder = app.Services.GetRequiredService<ILookoutRecorder>();
+        for (var i = 0; i < 200; i++)
+            recorder.Record(MakeEntry());
+
+        // Stop: shutdown drain must flush any entries still in the channel.
+        await app.StopAsync();
+
+        using var storage = OpenReadStorage(dbPath);
+        var rows = await storage.ReadRecentAsync(250);
+        rows.Should().HaveCount(200, "all 200 entries must be persisted with no batch-boundary loss");
+    }
+
+    [Fact]
     public async Task StorageException_DoesNotCrashHost_SubsequentWritesStillFlow()
     {
         var dbPath = TempDbPath();

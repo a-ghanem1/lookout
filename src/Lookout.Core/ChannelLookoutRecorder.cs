@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,11 @@ public sealed class ChannelLookoutRecorder : ILookoutRecorder, IDisposable
     private readonly ILogger<ChannelLookoutRecorder> _logger;
     private long _dropCount;
 
+    // Stopwatch gate: emit at most one warning per second under sustained overflow.
+    // Initialised to -1_001 so the first drop always fires a warning immediately.
+    private readonly Stopwatch _warningGate = Stopwatch.StartNew();
+    private long _lastWarningMs = -1_001L;
+
     public ChannelLookoutRecorder(
         IOptions<LookoutOptions> options,
         ILogger<ChannelLookoutRecorder> logger)
@@ -27,7 +33,7 @@ public sealed class ChannelLookoutRecorder : ILookoutRecorder, IDisposable
         _channel = Channel.CreateBounded<LookoutEntry>(new BoundedChannelOptions(_capacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
-            SingleReader = false,
+            SingleReader = true,
             SingleWriter = false,
         });
     }
@@ -49,12 +55,18 @@ public sealed class ChannelLookoutRecorder : ILookoutRecorder, IDisposable
         // DropOldest silently removes the oldest item and succeeds, so TryWrite always returns true.
         if (_channel.Reader.Count >= _capacity)
         {
-            var drops = Interlocked.Increment(ref _dropCount);
-            if (drops == 1 || drops % 1000 == 0)
+            Interlocked.Increment(ref _dropCount);
+
+            // Emit at most one warning per second; CAS ensures only one thread wins the window.
+            var nowMs = _warningGate.ElapsedMilliseconds;
+            var lastMs = Volatile.Read(ref _lastWarningMs);
+            if (nowMs - lastMs >= 1_000 &&
+                Interlocked.CompareExchange(ref _lastWarningMs, nowMs, lastMs) == lastMs)
+            {
                 _logger.LogWarning(
-                    "Lookout channel is full; {DropCount} {Noun} dropped.",
-                    drops,
-                    drops == 1 ? "entry" : "entries");
+                    "Lookout capture pipeline is behind; oldest entries are being dropped. " +
+                    "Consider increasing ChannelCapacity or reducing capture scope.");
+            }
         }
 
         _channel.Writer.TryWrite(entry);
