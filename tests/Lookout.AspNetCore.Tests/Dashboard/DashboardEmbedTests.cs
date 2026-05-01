@@ -228,6 +228,40 @@ public sealed class DashboardEmbedTests : IDisposable
         resp.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
     }
 
+    // ── cross-platform embedded asset tests ───────────────────────────────────
+
+    [Fact]
+    public void EmbeddedResourcePaths_NeverContainBackslash()
+    {
+        // DashboardAssets normalizes Windows MSBuild %(RecursiveDir) backslashes to '/'
+        // so URL construction is always forward-slash regardless of build platform.
+        var paths = DashboardAssets.EnumerateAssetPaths().ToList();
+        if (paths.Count == 0) return; // SkipDashboardUiBuild — no assets embedded
+
+        paths.Should().NotContain(
+            p => p.Contains('\\'),
+            because: "embedded asset paths must use '/' separators on all platforms");
+    }
+
+    [Theory]
+    [InlineData("/lookout/", "text/html")]
+    [InlineData("/lookout/index.html", "text/html")]
+    public async Task GetStaticDashboardPath_Returns200_WithCorrectContentType(
+        string requestPath, string expectedContentType)
+    {
+        if (!HasEmbeddedAssets()) return;
+
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync(requestPath);
+        await app.StopAsync();
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        resp.Content.Headers.ContentType!.MediaType.Should().Be(expectedContentType);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static bool HasEmbeddedAssets() =>

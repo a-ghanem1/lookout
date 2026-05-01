@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using FluentAssertions;
 using Lookout.Core;
@@ -353,6 +354,35 @@ public sealed class LookoutDbCommandInterceptorTests
             content.Stack.Should().OnlyContain(
                 f => !string.IsNullOrEmpty(f.Method),
                 "Method must always be present regardless of PDB availability; File and Line are nullable");
+        }
+    }
+
+    [Fact]
+    public async Task StackFrame_FilePaths_WhenPresent_AreAbsoluteAndPlatformNative()
+    {
+        var (interceptor, recorder) = BuildInterceptor();
+        var (ctx, conn) = await BuildContextAsync(interceptor);
+        await using (ctx) await using (conn)
+        {
+            recorder.Clear();
+            _ = ctx.Widgets.ToList(); // sync: preserves the full synchronous call stack
+
+            var entry = recorder.Entries.First(e => e.Type == "ef");
+            var content = JsonSerializer.Deserialize<EfEntryContent>(entry.Content, LookoutJson.Options)!;
+
+            var framesWithFiles = content.Stack.Where(f => f.File is not null).ToList();
+            if (framesWithFiles.Count == 0) return; // PDBs not available in this build config
+
+            framesWithFiles.Should().OnlyContain(
+                f => Path.IsPathRooted(f.File!),
+                "stack frame file paths must be absolute so IDEs can navigate to source");
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                framesWithFiles.Should().NotContain(
+                    f => f.File!.Contains('\\'),
+                    "on Unix, stack frame file paths must use forward-slash separators");
+            }
         }
     }
 }
