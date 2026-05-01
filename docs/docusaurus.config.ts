@@ -8,7 +8,7 @@ const config: Config = {
   favicon: 'img/favicon.png',
 
   url: 'https://a-ghanem1.github.io',
-  baseUrl: '/Lookout/',
+  baseUrl: '/lookout/',
 
   organizationName: 'a-ghanem1',
   projectName: 'Lookout',
