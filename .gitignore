@@ -70,3 +70,4 @@ pnpm-lock.yaml
 docs/node_modules/
 docs/.docusaurus/
 docs/build/
+BenchmarkDotNet.Artifacts/
