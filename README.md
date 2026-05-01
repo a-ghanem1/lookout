@@ -133,12 +133,6 @@ builder.Services.AddLookout(options =>
 
 Full reference at [a-ghanem1.github.io/Lookout/docs/configuration](https://a-ghanem1.github.io/Lookout/docs/configuration).
 
----
-
-## Demo
-
-- **[60-second demo](https://youtube.com/watch?v=TODO)** — find an N+1 bug in 10 seconds
-- **[5-minute walkthrough](https://youtube.com/watch?v=TODO)** — every capture type, end to end
 
 ---
 
