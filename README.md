@@ -89,7 +89,7 @@ All entries are correlated by request ID and searchable full-text (SQLite FTS5).
 
 ## Dashboard features
 
-- **Telescope-style navigation** — dedicated list page per capture type: Requests, Queries, Exceptions, Logs, Cache, Jobs, Dump, HTTP Clients
+- **Section-per-capture navigation** — dedicated list page per capture type: Requests, Queries, Exceptions, Logs, Cache, Jobs, Dump, HTTP Clients
 - **Full-text search** — `Cmd+K` / `Ctrl+K` across all entries and tags
 - **Keyboard navigation** — `j`/`k` to move, `Enter` to open, `Esc` to go back
 - **Mini-Gantt timeline** — per-request coloured bars for each capture type
