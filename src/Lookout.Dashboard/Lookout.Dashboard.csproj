@@ -5,6 +5,11 @@
     <!-- Default resource name prefix; LogicalName overrides per-file below. -->
     <RootNamespace>Lookout.Dashboard</RootNamespace>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <PackageId>Lookout.Dashboard</PackageId>
+    <Description>Embedded browser dashboard for Lookout's dev-time diagnostics dashboard for ASP.NET Core. Provides the React UI served at /lookout.</Description>
+    <PackageTags>aspnetcore;diagnostics;dashboard;devtools</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>lookout-icon.png</PackageIcon>
     <DashboardUiDir>$(MSBuildThisFileDirectory)..\Lookout.Dashboard.Ui</DashboardUiDir>
     <DashboardWebRoot>$(MSBuildThisFileDirectory)wwwroot</DashboardWebRoot>
     <!--
@@ -19,6 +24,11 @@
     <_NpmBuild Condition="'$(OS)' != 'Windows_NT'">bash -c '. $HOME/.nvm/nvm.sh 2>/dev/null; nvm use node 2>/dev/null; npm run build'</_NpmBuild>
     <_NpmBuild Condition="'$(OS)' == 'Windows_NT'">npm run build</_NpmBuild>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\assets\lookout-icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Lookout.Core\Lookout.Core.csproj" />

@@ -3,7 +3,17 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
+    <PackageId>Lookout.EntityFrameworkCore</PackageId>
+    <Description>Entity Framework Core integration for Lookout's dev-time diagnostics dashboard. Adds EF Core query capture with N+1 detection and per-query stack traces.</Description>
+    <PackageTags>aspnetcore;efcore;entityframeworkcore;diagnostics;dashboard;debugging;n+1;devtools</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>lookout-icon.png</PackageIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\assets\lookout-icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
