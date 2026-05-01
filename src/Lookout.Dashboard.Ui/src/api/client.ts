@@ -95,10 +95,18 @@ export async function getHostInfo(signal?: AbortSignal): Promise<HostInfo> {
   return (await resp.json()) as HostInfo;
 }
 
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)__lookout-csrf=([^;]+)/);
+  return match ? match[1] : '';
+}
+
 export async function deleteAllEntries(signal?: AbortSignal): Promise<{ deleted: number }> {
   const resp = await fetch(`${API_BASE}entries`, {
     method: 'DELETE',
-    headers: { Origin: window.location.origin },
+    headers: {
+      Origin: window.location.origin,
+      'X-Lookout-Csrf-Token': getCsrfToken(),
+    },
     signal,
   });
   if (!resp.ok) throw new Error(`delete: ${resp.status}`);

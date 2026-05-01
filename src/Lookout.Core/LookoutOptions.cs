@@ -15,6 +15,13 @@ public sealed class LookoutOptions
     public bool AllowInProduction { get; set; }
 
     /// <summary>
+    /// When true, suppresses the startup warning logged when Lookout is bound to a
+    /// non-loopback address (i.e. accessible to other machines on the network).
+    /// Default: false (warning is logged).
+    /// </summary>
+    public bool AllowNonLoopback { get; set; }
+
+    /// <summary>
     /// Path to the SQLite database file used for entry storage.
     /// Default: <c>%LocalAppData%/Lookout/lookout.db</c> (cross-platform equivalent).
     /// </summary>

@@ -35,6 +35,19 @@ public sealed class DevOnlyEnforcementTests
     }
 
     [Fact]
+    public void Staging_NotInAllowList_ThrowsOnUseLookout()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Staging" });
+        builder.Services.AddLookout(); // default AllowInEnvironments = ["Development"]
+        using var app = builder.Build();
+
+        var act = () => app.UseLookout();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*'Staging'*");
+    }
+
+    [Fact]
     public async Task Staging_InAllowList_AppStartsAndLookoutIsReachable()
     {
         await using var app = BuildTestApp("Staging", o =>

@@ -88,6 +88,17 @@ public static class LookoutEndpointRouteBuilderExtensions
             return;
         }
 
+        // Set the CSRF double-submit cookie. HttpOnly=false is intentional: the React
+        // client reads the token via document.cookie and attaches it as the
+        // X-Lookout-Csrf-Token header on mutating requests.
+        ctx.Response.Cookies.Append("__lookout-csrf", mount.CsrfToken, new CookieOptions
+        {
+            SameSite = SameSiteMode.Strict,
+            HttpOnly = false,
+            Path = mount.PathPrefix.TrimEnd('/'),
+            IsEssential = true,
+        });
+
         // Inject <base href> so the browser resolves Vite's relative asset URLs
         // (and our fetch('api/…') calls) against the mount prefix, regardless of
         // whether the current URL is `/lookout`, `/lookout/`, or `/lookout/requests/x`.
@@ -346,10 +357,11 @@ public static class LookoutEndpointRouteBuilderExtensions
 
     private static async Task<IResult> DeleteAllEntriesAsync(
         HttpContext ctx,
-        SqliteLookoutStorage storage)
+        SqliteLookoutStorage storage,
+        LookoutMountInfo mount)
     {
-        if (!IsSameOrigin(ctx))
-            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        if (!IsSameOrigin(ctx) || !IsValidCsrf(ctx, mount))
+            return Results.Json(new { error = "csrf" }, statusCode: StatusCodes.Status403Forbidden);
 
         var deleted = await storage.DeleteAllAsync(ctx.RequestAborted).ConfigureAwait(false);
         return Json(new { deleted });
@@ -363,6 +375,13 @@ public static class LookoutEndpointRouteBuilderExtensions
         if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri))
             return string.Equals(originUri.Authority, host, StringComparison.OrdinalIgnoreCase);
         return false;
+    }
+
+    private static bool IsValidCsrf(HttpContext ctx, LookoutMountInfo mount)
+    {
+        var header = ctx.Request.Headers["X-Lookout-Csrf-Token"].FirstOrDefault();
+        return !string.IsNullOrEmpty(header)
+            && string.Equals(header, mount.CsrfToken, StringComparison.Ordinal);
     }
 
     private static IResult Json<T>(T value)
