@@ -1,7 +1,7 @@
-import { Eye } from 'lucide-react';
+import { ArrowLeft, Eye } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { listEntries } from '../../api/client';
-import type { EntryDto } from '../../api/types';
+import { getEntry, listEntries } from '../../api/client';
+import type { EfEntryContent, EntryDto, SqlEntryContent } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
 import { ActiveTagsBar } from '../../components/Tags/TagChip';
@@ -32,7 +32,133 @@ function durationColorClass(ms: number | undefined | null): string {
   return styles.durationError;
 }
 
-export function QueriesPage({ id: _id }: { id?: string } = {}) {
+function QueryDetail({ id }: { id: string }) {
+  const [entry, setEntry] = useState<EntryDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | undefined>();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(undefined);
+    getEntry(id, controller.signal)
+      .then((e) => {
+        setEntry(e);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          setError(err);
+          setLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className={styles.detailWrap}>
+        <a href="#/queries" className={styles.backLink}>
+          <ArrowLeft size={14} strokeWidth={2} />Queries
+        </a>
+        <span className={styles.detailLoading}>Loading…</span>
+      </div>
+    );
+  }
+
+  if (error || !entry) {
+    return (
+      <div className={styles.detailWrap}>
+        <a href="#/queries" className={styles.backLink}>
+          <ArrowLeft size={14} strokeWidth={2} />Queries
+        </a>
+        <p className={styles.detailError}>{error?.message ?? 'Entry not found'}</p>
+      </div>
+    );
+  }
+
+  const isEf = entry.type === 'ef';
+  const content = entry.content as EfEntryContent | SqlEntryContent;
+  const dbContextType = isEf ? (content as EfEntryContent).dbContextType : null;
+
+  return (
+    <div className={styles.detailWrap}>
+      <div className={styles.detailNavRow}>
+        <a href="#/queries" className={styles.backLink}>
+          <ArrowLeft size={14} strokeWidth={2} />Queries
+        </a>
+        {entry.requestId && (
+          <a
+            href={`#/requests/${encodeURIComponent(entry.requestId)}`}
+            className={styles.backLink}
+          >
+            <Eye size={12} strokeWidth={2} />
+            Parent request
+          </a>
+        )}
+      </div>
+
+      <div className={styles.detailSection}>
+        <div className={styles.detailMetaRow}>
+          <span className={`${styles.sourceBadge} ${isEf ? styles.badgeEf : styles.badgeSql}`}>
+            {isEf ? 'EF' : 'SQL'}
+          </span>
+          <span className={durationColorClass(content.durationMs)}>
+            {formatDuration(content.durationMs)}
+          </span>
+          {content.commandType && (
+            <span className={styles.metaChip}>{content.commandType}</span>
+          )}
+          {content.rowsAffected != null && (
+            <span className={styles.metaChip}>
+              {content.rowsAffected} row{content.rowsAffected !== 1 ? 's' : ''}
+            </span>
+          )}
+          {dbContextType && (
+            <code className={styles.dbContext}>{dbContextType.split('.').pop()}</code>
+          )}
+        </div>
+        <pre className={styles.sqlBlock}><code>{content.commandText}</code></pre>
+      </div>
+
+      {content.parameters.length > 0 && (
+        <div className={styles.detailSection}>
+          <div className={styles.sectionTitle}>Parameters</div>
+          <div className={styles.paramList}>
+            {content.parameters.map((p, i) => (
+              <div key={i} className={styles.paramRow}>
+                <code className={styles.paramName}>{p.name}</code>
+                {p.dbType && <span className={styles.paramType}>{p.dbType}</span>}
+                <code className={styles.paramValue}>{p.value ?? 'null'}</code>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {content.stack.length > 0 && (
+        <div className={styles.detailSection}>
+          <div className={styles.sectionTitle}>Stack trace</div>
+          <div className={styles.stackList} data-testid="query-stack">
+            {content.stack.map((frame, i) => (
+              <div key={i} className={styles.stackFrame}>
+                <code className={styles.frameName}>{frame.method}</code>
+                {frame.file && (
+                  <span className={styles.frameLoc}>
+                    {frame.file.split(/[/\\]/).pop()}
+                    {frame.line != null ? `:${frame.line}` : ''}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function QueriesPage({ id }: { id?: string } = {}) {
   const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [source, setSource] = useState<Source>('all');
   const [minDuration, setMinDuration] = useState<DurationFilter>(0);
@@ -49,6 +175,7 @@ export function QueriesPage({ id: _id }: { id?: string } = {}) {
   }, [search]);
 
   useEffect(() => {
+    if (id) return;
     const controller = new AbortController();
     setLoading(true);
     setError(undefined);
@@ -76,7 +203,9 @@ export function QueriesPage({ id: _id }: { id?: string } = {}) {
       });
 
     return () => controller.abort();
-  }, [source, minDuration, debouncedSearch, activeTags, retryCount]);
+  }, [id, source, minDuration, debouncedSearch, activeTags, retryCount]);
+
+  if (id) return <QueryDetail id={id} />;
 
   const filterSlot = (
     <div className={styles.filterBar}>
@@ -158,7 +287,7 @@ export function QueriesPage({ id: _id }: { id?: string } = {}) {
             )
           }
           onClick={() => {
-            window.location.hash = `#/queries/${encodeURIComponent(entry.id)}`;
+            window.location.hash = `/queries/${encodeURIComponent(entry.id)}`;
           }}
         />
       )}
