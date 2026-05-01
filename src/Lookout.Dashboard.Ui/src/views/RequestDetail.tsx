@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getRequestEntries } from '../api/client';
 import type {
   CacheEntryContent,
@@ -22,27 +22,9 @@ import { formatDuration, formatTimestamp, tryPrettyJson } from '../format';
 import { formatSql, sqlPreview } from '../lib/sqlFormatter';
 import type { SyntaxToken, TokenType } from '../lib/syntaxHighlight';
 import { tokenizeJson, tokenizeSql } from '../lib/syntaxHighlight';
+import { IDE_CHANGED_EVENT, IdeContext, ideUrl, readIde, useIdeContext } from '../hooks/useIde';
+import type { IdePreference } from '../hooks/useIde';
 import styles from './RequestDetail.module.css';
-
-const IDE_STORAGE_KEY = 'lookout:ide';
-type IdePreference = 'none' | 'vscode' | 'rider';
-
-const IdeContext = createContext<IdePreference>('none');
-
-function readIde(): IdePreference {
-  try {
-    const v = localStorage.getItem(IDE_STORAGE_KEY);
-    if (v === 'vscode' || v === 'rider') return v;
-  } catch { /* ignore */ }
-  return 'none';
-}
-
-function ideUrl(ide: IdePreference, file: string, line: number | null | undefined): string | null {
-  const l = line ?? 1;
-  if (ide === 'vscode') return `vscode://file/${file}:${l}`;
-  if (ide === 'rider') return `idea://open?file=${encodeURIComponent(file)}&line=${l}`;
-  return null;
-}
 
 function buildCurl(content: HttpEntryContent): string {
   const url = `${window.location.origin}${content.path}${content.queryString ?? ''}`;
@@ -94,8 +76,8 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
 
   useEffect(() => {
     const handler = (e: Event) => setIde((e as CustomEvent<IdePreference>).detail);
-    window.addEventListener('lookout:ide-changed', handler);
-    return () => window.removeEventListener('lookout:ide-changed', handler);
+    window.addEventListener(IDE_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(IDE_CHANGED_EVENT, handler);
   }, []);
 
   if (!http) {
@@ -594,7 +576,7 @@ function EfParameters({ parameters }: { parameters: DbContent['parameters'] }) {
 }
 
 function EfStack({ stack }: { stack: EfStackFrame[] }) {
-  const ide = useContext(IdeContext);
+  const ide = useIdeContext();
   if (!stack || stack.length === 0) {
     return (
       <div>
@@ -1028,7 +1010,7 @@ function DumpSection({ entries }: { entries: EntryDto[] }) {
 
 function DumpRow({ entry }: { entry: EntryDto }) {
   const [open, setOpen] = useState(false);
-  const ide = useContext(IdeContext);
+  const ide = useIdeContext();
   const content = entry.content as DumpEntryContent;
   const label = content?.label;
   const fileName = callerBasename(content?.callerFile ?? '');

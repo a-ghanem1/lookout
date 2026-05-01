@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { IDE_CHANGED_EVENT, IDE_STORAGE_KEY, readIde } from '../../hooks/useIde';
+import type { IdePreference } from '../../hooks/useIde';
 import { CacheIcon } from '../Icons/section/CacheIcon';
 import { DumpIcon } from '../Icons/section/DumpIcon';
 import { ExceptionsIcon } from '../Icons/section/ExceptionsIcon';
@@ -16,16 +18,6 @@ import { href } from '../../router/hashRouter';
 import type { ThemeMode } from '../../theme/useTheme';
 import styles from './Sidebar.module.css';
 
-const IDE_STORAGE_KEY = 'lookout:ide';
-type IdePreference = 'none' | 'vscode' | 'rider';
-
-function readIde(): IdePreference {
-  try {
-    const v = localStorage.getItem(IDE_STORAGE_KEY);
-    if (v === 'vscode' || v === 'rider') return v;
-  } catch { /* ignore */ }
-  return 'none';
-}
 
 interface SidebarProps {
   route: Route;
@@ -85,7 +77,7 @@ export function Sidebar({ route, counts, themeMode, onThemeCycle, onSearch }: Si
     const v = e.target.value as IdePreference;
     setIde(v);
     try { localStorage.setItem(IDE_STORAGE_KEY, v); } catch { /* ignore */ }
-    window.dispatchEvent(new CustomEvent('lookout:ide-changed', { detail: v }));
+    window.dispatchEvent(new CustomEvent(IDE_CHANGED_EVENT, { detail: v }));
   };
 
   const items: NavItem[] = [

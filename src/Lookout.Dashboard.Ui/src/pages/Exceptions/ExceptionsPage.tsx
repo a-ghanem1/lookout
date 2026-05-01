@@ -5,6 +5,7 @@ import type { EntryDto, ExceptionEntryContent, InnerException } from '../../api/
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
 import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { ideUrl, useIde } from '../../hooks/useIde';
 import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatRelative } from '../../format';
 import styles from './ExceptionsPage.module.css';
@@ -27,6 +28,7 @@ function truncateTypeName(name: string): string {
 }
 
 function ExceptionDetail({ id }: { id: string }) {
+  const ide = useIde();
   const [entry, setEntry] = useState<EntryDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | undefined>();
@@ -100,17 +102,22 @@ function ExceptionDetail({ id }: { id: string }) {
         <div className={styles.detailSection}>
           <div className={styles.sectionTitle}>Stack trace</div>
           <div className={styles.stackList} data-testid="exception-stack">
-            {content.stack.map((frame, i) => (
-              <div key={i} className={styles.stackFrame}>
-                <code className={styles.frameName}>{frame.method}</code>
-                {frame.file && (
-                  <span className={styles.frameLoc}>
-                    {frame.file.split(/[/\\]/).pop()}
-                    {frame.line != null ? `:${frame.line}` : ''}
-                  </span>
-                )}
-              </div>
-            ))}
+            {content.stack.map((frame, i) => {
+              const link = frame.file ? ideUrl(ide, frame.file, frame.line) : null;
+              const locText = frame.file
+                ? `${frame.file.split(/[/\\]/).pop()}${frame.line != null ? `:${frame.line}` : ''}`
+                : null;
+              return (
+                <div key={i} className={styles.stackFrame}>
+                  <code className={styles.frameName}>{frame.method}</code>
+                  {locText && (
+                    link
+                      ? <a href={link} className={styles.frameLoc}>{locText}</a>
+                      : <span className={styles.frameLoc}>{locText}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
