@@ -28,10 +28,11 @@
 }
 
 .brandMark {
-  width: var(--space-6);
-  height: var(--space-6);
+  width: var(--space-8);
+  height: var(--space-8);
   color: var(--color-accent-fg);
   flex-shrink: 0;
+  transform: translateY(1px);
 }
 
 .brandWordmark {

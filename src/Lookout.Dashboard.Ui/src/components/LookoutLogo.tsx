@@ -13,14 +13,14 @@ export function LookoutLogo(props: SVGProps<SVGSVGElement>) {
         d="M 35 22 L 26 22 A 4 4 0 0 0 22 26 L 22 35"
         fill="none"
         stroke="currentColor"
-        strokeWidth="4"
+        strokeWidth="8"
         strokeLinecap="square"
       />
       <path
         d="M 65 78 L 74 78 A 4 4 0 0 0 78 74 L 78 65"
         fill="none"
         stroke="currentColor"
-        strokeWidth="4"
+        strokeWidth="8"
         strokeLinecap="square"
       />
       <circle cx="50" cy="50" r="4" fill="currentColor" />

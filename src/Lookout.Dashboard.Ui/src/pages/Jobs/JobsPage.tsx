@@ -195,11 +195,7 @@ export function JobsPage() {
         const queue = entry.tags['job.queue'];
         const jobLabel = `${shortTypeName(jobType)}.${method}`;
 
-        const handleClick = isExecution
-          ? () => { window.location.hash = `/jobs/${entry.id}`; }
-          : entry.requestId
-          ? () => { window.location.hash = `/requests/${encodeURIComponent(entry.requestId!)}?focus=jobs&entry=${entry.id}`; }
-          : undefined;
+        const handleClick = () => { window.location.hash = `/jobs/${entry.id}`; };
 
         return (
           <EntryRow
