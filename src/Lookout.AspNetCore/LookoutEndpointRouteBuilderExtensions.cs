@@ -269,6 +269,20 @@ public static class LookoutEndpointRouteBuilderExtensions
             return Results.NotFound();
 
         var entries = await storage.GetByRequestIdAsync(id, ctx.RequestAborted).ConfigureAwait(false);
+
+        // If nothing matched as a requestId, treat id as an entry's own Guid and resolve
+        // to its requestId so all correlated entries are returned together.
+        if (entries.Count == 0 && Guid.TryParse(id, out var guid))
+        {
+            var pivot = await storage.GetByIdAsync(guid, ctx.RequestAborted).ConfigureAwait(false);
+            if (pivot is null)
+                return Results.NotFound();
+
+            entries = pivot.RequestId is not null
+                ? await storage.GetByRequestIdAsync(pivot.RequestId, ctx.RequestAborted).ConfigureAwait(false)
+                : [pivot];
+        }
+
         if (entries.Count == 0)
             return Results.NotFound();
 

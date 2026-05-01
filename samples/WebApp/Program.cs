@@ -1,5 +1,4 @@
 using Hangfire;
-using Hangfire.InMemory;
 using Lookout.AspNetCore;
 using Lookout.EntityFrameworkCore;
 using Lookout.Hangfire;

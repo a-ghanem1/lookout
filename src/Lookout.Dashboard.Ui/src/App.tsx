@@ -18,7 +18,7 @@ export default function App() {
   return (
     <AppShell route={route}>
       {route.name === 'list' && <RequestList />}
-      {route.name === 'detail' && <RequestDetail id={route.id} />}
+      {route.name === 'detail' && <RequestDetail key={route.id} id={route.id} />}
       {route.name === 'job' && <JobPage id={route.id} />}
       {route.name === 'queries' && <QueriesPage />}
       {route.name === 'query-detail' && <QueriesPage id={route.id} />}

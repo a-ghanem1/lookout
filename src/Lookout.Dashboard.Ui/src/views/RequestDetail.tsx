@@ -66,11 +66,12 @@ export function RequestDetail({ id }: { id: string }) {
     );
   }
 
-  return <DetailBody entries={state.data} />;
+  return <DetailBody entries={state.data} id={id} />;
 }
 
-export function DetailBody({ entries }: { entries: EntryDto[] }) {
-  const http = entries.find((e) => e.type === 'http');
+export function DetailBody({ entries, id }: { entries: EntryDto[]; id?: string }) {
+  const http = (id ? entries.find((e) => e.type === 'http' && e.id === id) : undefined)
+    ?? entries.find((e) => e.type === 'http');
   const [curlCopied, setCurlCopied] = useState(false);
   const [ide, setIde] = useState<IdePreference>(readIde);
 

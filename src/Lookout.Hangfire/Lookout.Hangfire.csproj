@@ -3,16 +3,21 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageId>Lookout.Hangfire</PackageId>
-    <Description>Hangfire background-job capture for Lookout's dev-time diagnostics dashboard.</Description>
-    <Authors>Abdelrahman Ghanem</Authors>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/a-ghanem1/Lookout</RepositoryUrl>
+    <Description>Hangfire background-job capture for Lookout's dev-time diagnostics dashboard. Records job enqueue and execution with child captures (EF queries, outbound HTTP, cache, logs, Dump) correlated per job.</Description>
+    <PackageTags>aspnetcore;hangfire;diagnostics;dashboard;debugging;devtools;backgroundjobs</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>lookout-icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Hangfire.Core" Version="1.8.14" />
     <!-- Pins Newtonsoft.Json to 13.0.3 to fix CVE (GHSA-5crp-9r3c-p9vr) from transitive 11.0.1 -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\assets\lookout-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

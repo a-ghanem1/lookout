@@ -288,6 +288,56 @@ public sealed class LookoutApiEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task GetRequestEntries_ByEntryId_ReturnsAllCorrelatedEntries()
+    {
+        // Regression: /orders/1 makes an HttpClient call to /payments/check/1 on the same
+        // server. Both get the same requestId (Activity.RootId propagates via W3C headers).
+        // The frontend now navigates with the specific entry's own Guid id so that the detail
+        // view can identify the correct root HTTP entry. The backend must resolve that entry id
+        // back to its requestId and return all correlated entries.
+        var dbPath = TempDbPath();
+        var sharedRequestId = "trace-abc-shared";
+        var paymentsEntry = MakeHttp("GET", "/payments/check/1", 200, offsetMs: -2000, requestId: sharedRequestId);
+        var ordersEntry = MakeHttp("GET", "/orders/1", 200, offsetMs: -1000, requestId: sharedRequestId);
+        await SeedAsync(dbPath, paymentsEntry, ordersEntry);
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        // Navigate using orders entry's own id (what the frontend now passes)
+        var resp = await app.GetTestClient().GetAsync($"/lookout/api/requests/{ordersEntry.Id}");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var dtos = await resp.Content.ReadFromJsonAsync<EntryDto[]>(LookoutJson.Options);
+        await app.StopAsync();
+
+        dtos.Should().NotBeNull().And.HaveCount(2, "both correlated entries should be returned");
+        var list = dtos!;
+        list.All(e => e.RequestId == sharedRequestId).Should().BeTrue();
+        // Both entries are returned — frontend uses the id to pick the right one
+        list.Select(e => e.Tags["http.path"]).Should().Contain("/orders/1").And.Contain("/payments/check/1");
+    }
+
+    [Fact]
+    public async Task GetRequestEntries_ByEntryId_NoRequestId_ReturnsSingleEntry()
+    {
+        // If an http entry has no requestId, resolving by entry id still returns that entry.
+        var dbPath = TempDbPath();
+        var orphan = MakeHttp("GET", "/standalone", 200, offsetMs: -500, requestId: null);
+        await SeedAsync(dbPath, orphan);
+
+        await using var app = BuildApp(dbPath);
+        await app.StartAsync();
+
+        var resp = await app.GetTestClient().GetAsync($"/lookout/api/requests/{orphan.Id}");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var dtos = await resp.Content.ReadFromJsonAsync<EntryDto[]>(LookoutJson.Options);
+        await app.StopAsync();
+
+        dtos.Should().ContainSingle();
+        dtos![0].Tags["http.path"].Should().Be("/standalone");
+    }
+
+    [Fact]
     public async Task ApiCalls_AreNeverSelfCaptured()
     {
         var dbPath = TempDbPath();
