@@ -2,10 +2,20 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>Lookout.AspNetCore</PackageId>
+    <Description>Zero-config dev-time diagnostics dashboard for ASP.NET Core. Captures HTTP requests, EF Core queries with N+1 detection, outbound HTTP, cache hits/misses, exceptions, logs, and Lookout.Dump() output — all correlated per-request in a browser dashboard.</Description>
+    <PackageTags>aspnetcore;diagnostics;dashboard;debugging;efcore;n+1;profiler;devtools</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>lookout-icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\assets\lookout-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

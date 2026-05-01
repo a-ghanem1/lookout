@@ -96,8 +96,7 @@ export function RequestList() {
       } else if (e.key === 'Enter' && keyboardIndexRef.current >= 0) {
         const entry = entriesRef.current[keyboardIndexRef.current];
         if (entry) {
-          const dest = entry.requestId ?? entry.id;
-          window.location.hash = `#/requests/${encodeURIComponent(dest)}`;
+          window.location.hash = `#/requests/${encodeURIComponent(entry.id)}`;
         }
       }
     }
@@ -253,8 +252,7 @@ function RequestRow({ entry, hideUser, dimmed, index, selected }: { entry: Entry
   const jobCount = jobCountStr !== undefined ? Number.parseInt(jobCountStr, 10) : null;
 
   const go = () => {
-    const target = entry.requestId ?? entry.id;
-    window.location.hash = `#/requests/${encodeURIComponent(target)}`;
+    window.location.hash = `#/requests/${encodeURIComponent(entry.id)}`;
   };
 
   return (

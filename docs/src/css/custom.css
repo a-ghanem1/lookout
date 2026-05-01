@@ -1,0 +1,44 @@
+/* Primary colour — .NET purple, matches the NuGet badge palette */
+:root {
+  --ifm-color-primary: #512bd4;
+  --ifm-color-primary-dark: #4924be;
+  --ifm-color-primary-darker: #4421b4;
+  --ifm-color-primary-darkest: #381b93;
+  --ifm-color-primary-light: #6040da;
+  --ifm-color-primary-lighter: #6748db;
+  --ifm-color-primary-lightest: #7e63e3;
+
+  --ifm-code-font-size: 94%;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'Fira Code', ui-monospace,
+    SFMono-Regular, Menlo, Consolas, monospace;
+
+  --docusaurus-highlighted-code-line-bg: rgba(81, 43, 212, 0.08);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #9d82f5;
+  --ifm-color-primary-dark: #8b6df1;
+  --ifm-color-primary-darker: #8163ef;
+  --ifm-color-primary-darkest: #6947ea;
+  --ifm-color-primary-light: #af97f7;
+  --ifm-color-primary-lighter: #b8a1f8;
+  --ifm-color-primary-lightest: #ccbbfa;
+
+  --docusaurus-highlighted-code-line-bg: rgba(157, 130, 245, 0.1);
+}
+
+/* Tighten up admonition padding */
+.alert {
+  --ifm-alert-padding-vertical: 0.75rem;
+}
+
+/* Slightly larger code blocks */
+pre code {
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* Option reference tables */
+table th:first-child {
+  white-space: nowrap;
+}

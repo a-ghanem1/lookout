@@ -81,6 +81,52 @@ function sqlEntry(id: string, sql: string, duration = 2.34, tags: Record<string,
   };
 }
 
+describe('RequestDetail — shared-requestId regression', () => {
+  // Regression: /orders/1 calls /payments/check/1 internally via HttpClient. Both capture
+  // as http-type entries with the same requestId. The backend returns them sorted by timestamp
+  // ASC, so /payments/check/1 (which completed first) appears first. Without the id prop,
+  // DetailBody would show /payments/check/1 as the title when you clicked /orders/1.
+  const paymentsEntry: EntryDto = {
+    id: 'payments-entry-id',
+    type: 'http',
+    timestamp: 1_700_000_000_000,
+    requestId: 'shared-trace-id',
+    durationMs: 1,
+    tags: { 'http.method': 'GET', 'http.path': '/payments/check/1', 'http.status': '200' },
+    content: { method: 'GET', path: '/payments/check/1', queryString: '', statusCode: 200, durationMs: 1, requestHeaders: {}, responseHeaders: {} },
+  };
+  const ordersEntry: EntryDto = {
+    id: 'orders-entry-id',
+    type: 'http',
+    timestamp: 1_700_000_001_000,
+    requestId: 'shared-trace-id',
+    durationMs: 6,
+    tags: { 'http.method': 'GET', 'http.path': '/orders/1', 'http.status': '200' },
+    content: { method: 'GET', path: '/orders/1', queryString: '', statusCode: 200, durationMs: 6, requestHeaders: {}, responseHeaders: {} },
+  };
+
+  it('without id prop picks first http entry (payments, by timestamp)', () => {
+    render(<DetailBody entries={[paymentsEntry, ordersEntry]} />);
+    expect(screen.getByTestId('request-detail')).toHaveTextContent('/payments/check/1');
+  });
+
+  it('with id=ordersEntryId picks /orders/1 even though payments comes first', () => {
+    render(<DetailBody entries={[paymentsEntry, ordersEntry]} id="orders-entry-id" />);
+    expect(screen.getByTestId('request-detail')).toHaveTextContent('/orders/1');
+    expect(screen.getByTestId('request-detail')).not.toHaveTextContent('/payments/check/1');
+  });
+
+  it('with id=paymentsEntryId picks /payments/check/1', () => {
+    render(<DetailBody entries={[paymentsEntry, ordersEntry]} id="payments-entry-id" />);
+    expect(screen.getByTestId('request-detail')).toHaveTextContent('/payments/check/1');
+  });
+
+  it('falls back to first http entry when id does not match any entry', () => {
+    render(<DetailBody entries={[paymentsEntry, ordersEntry]} id="unknown-id" />);
+    expect(screen.getByTestId('request-detail')).toHaveTextContent('/payments/check/1');
+  });
+});
+
 describe('RequestDetail', () => {
   it('renders method, path, status and metadata from a mock HTTP entry', () => {
     render(<DetailBody entries={[httpEntry]} />);

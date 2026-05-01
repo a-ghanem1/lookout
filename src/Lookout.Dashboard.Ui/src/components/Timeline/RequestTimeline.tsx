@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { EntryDto } from '../../api/types';
 import { formatDuration } from '../../format';
 import styles from './RequestTimeline.module.css';
@@ -14,9 +14,6 @@ const ROW_TYPES = [
 ];
 
 const TOOLTIP_W = 252;
-
-const ROW_HEIGHT = 20;
-const LABEL_WIDTH = 48;
 const PAD_RATIO = 0.05;
 
 interface BarTooltip {
@@ -70,7 +67,6 @@ export function RequestTimeline({
   childEntries,
   onScrollToEntry,
 }: RequestTimelineProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<BarTooltip | null>(null);
 
   const requestStart = httpEntry.timestamp;
@@ -83,17 +79,16 @@ export function RequestTimeline({
 
   if (activeRows.length === 0 || requestDuration <= 0) return null;
 
-  const svgHeight = activeRows.length * ROW_HEIGHT + 24; // 24 for axis
   const pad = requestDuration * PAD_RATIO;
   const domainStart = requestStart - pad;
   const domainEnd = requestEnd + pad;
   const domainMs = domainEnd - domainStart;
 
-  function toPercent(ts: number) {
-    return ((ts - domainStart) / domainMs) * 100;
+  function toLeftPct(ts: number) {
+    return Math.max(0, Math.min(100, ((ts - domainStart) / domainMs) * 100));
   }
-  function durationPercent(ms: number) {
-    return (ms / domainMs) * 100;
+  function toWidthPct(ms: number) {
+    return Math.max(0.3, (ms / domainMs) * 100);
   }
 
   return (
@@ -102,46 +97,25 @@ export function RequestTimeline({
         <span className={styles.title}>Timeline</span>
       </div>
 
-      <div className={styles.svgWrap}>
-        <svg
-          ref={svgRef}
-          className={styles.svg}
-          height={svgHeight}
-          aria-label="Request timeline"
-          role="img"
-        >
-          {/* Row labels */}
-          {activeRows.map((row, ri) => (
-            <text
-              key={row.key}
-              x={LABEL_WIDTH - 4}
-              y={ri * ROW_HEIGHT + ROW_HEIGHT / 2 + 4}
-              className={styles.rowLabel}
-              textAnchor="end"
-            >
-              {row.label}
-            </text>
-          ))}
-
-          {/* Bars */}
-          {activeRows.map((row, ri) => {
-            const rowEntries = childEntries.filter((e) => row.types.includes(e.type));
-            return (
-              <g key={row.key} transform={`translate(${LABEL_WIDTH},0)`}>
+      <div className={styles.body}>
+        {activeRows.map((row) => {
+          const rowEntries = childEntries.filter((e) => row.types.includes(e.type));
+          return (
+            <div key={row.key} className={styles.row}>
+              <span className={styles.rowLabel}>{row.label}</span>
+              <div className={styles.track}>
                 {rowEntries.map((entry) => {
-                  const startPct = toPercent(entry.timestamp);
-                  const durPct = Math.max(durationPercent(entry.durationMs ?? 0), 0.3);
-                  const y = ri * ROW_HEIGHT + 4;
+                  const left = toLeftPct(entry.timestamp);
+                  const width = Math.min(toWidthPct(entry.durationMs ?? 0), 100 - left);
                   return (
-                    <rect
+                    <div
                       key={entry.id}
-                      x={`${startPct}%`}
-                      y={y}
-                      width={`${durPct}%`}
-                      height={ROW_HEIGHT - 8}
-                      rx={2}
-                      style={{ fill: `var(${row.colorVar})`, opacity: 0.85 }}
                       className={styles.bar}
+                      style={{
+                        left: `${left}%`,
+                        width: `${width}%`,
+                        background: `var(${row.colorVar})`,
+                      }}
                       onMouseEnter={(e) => {
                         setTooltip({
                           clientX: e.clientX,
@@ -158,42 +132,36 @@ export function RequestTimeline({
                     />
                   );
                 })}
-              </g>
-            );
-          })}
+              </div>
+            </div>
+          );
+        })}
 
-          {/* Axis line */}
-          <line
-            x1={LABEL_WIDTH}
-            y1={activeRows.length * ROW_HEIGHT}
-            x2="100%"
-            y2={activeRows.length * ROW_HEIGHT}
-            className={styles.axisLine}
-          />
+        <div className={styles.axisRow}>
+          <span className={styles.rowLabel} />
+          <div className={styles.axisTrack}>
+            <span className={styles.axisLabel}>0ms</span>
+            <span className={styles.axisLabel}>{formatDuration(requestDuration)}</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Axis labels */}
-          <text x={LABEL_WIDTH} y={svgHeight - 4} className={styles.axisLabel}>0ms</text>
-          <text x="100%" y={svgHeight - 4} className={styles.axisLabel} textAnchor="end">
-            {formatDuration(requestDuration)}
-          </text>
-        </svg>
-
-        {tooltip && (
-          <div
-            className={styles.tooltip}
-            style={{
-              left: tooltip.clientX + 12 + TOOLTIP_W > window.innerWidth
+      {tooltip && (
+        <div
+          className={styles.tooltip}
+          style={{
+            left:
+              tooltip.clientX + 12 + TOOLTIP_W > window.innerWidth
                 ? tooltip.clientX - TOOLTIP_W - 12
                 : tooltip.clientX + 12,
-              top: tooltip.clientY - 20,
-            }}
-          >
-            <div className={styles.tooltipType}>{tooltip.label}</div>
-            <div className={styles.tooltipDuration}>{tooltip.duration}</div>
-            <div className={styles.tooltipSummary}>{tooltip.summary}</div>
-          </div>
-        )}
-      </div>
+            top: tooltip.clientY - 20,
+          }}
+        >
+          <div className={styles.tooltipType}>{tooltip.label}</div>
+          <div className={styles.tooltipDuration}>{tooltip.duration}</div>
+          <div className={styles.tooltipSummary}>{tooltip.summary}</div>
+        </div>
+      )}
     </div>
   );
 }

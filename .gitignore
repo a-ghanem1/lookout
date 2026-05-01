@@ -60,3 +60,13 @@ pnpm-lock.yaml
 *.db
 *.db-shm
 *.db-wal
+
+# Lookout SQLite files
+*.lookout
+*.lookout-wal
+*.lookout-shm
+
+# Docusaurus docs site
+docs/node_modules/
+docs/.docusaurus/
+docs/build/
