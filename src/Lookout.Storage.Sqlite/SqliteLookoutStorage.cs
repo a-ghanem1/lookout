@@ -546,6 +546,14 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         return results;
     }
 
+    public async Task<long> GetTotalCountAsync(CancellationToken ct = default)
+    {
+        await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM entries";
+        return (long)(await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false))!;
+    }
+
     public void Dispose() => (_factory as IDisposable)?.Dispose();
 
     private static bool TryGetLogLevelOrdinal(string level, out int ordinal)

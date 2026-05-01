@@ -25,6 +25,11 @@ internal sealed class SqliteConnectionFactory : ISqliteConnectionFactory, IDispo
         }
     }
 
+    // SQLite WAL mode creates three files alongside the main database:
+    //   .lookout        — the main database file
+    //   .lookout-wal    — write-ahead log (deleted when the connection is cleanly closed)
+    //   .lookout-shm    — shared-memory index (deleted alongside the WAL)
+    // Consumers should .gitignore all three: *.lookout, *.lookout-wal, *.lookout-shm
     public async Task<SqliteConnection> OpenAsync(CancellationToken ct = default)
     {
         var conn = new SqliteConnection(_connectionString);
@@ -32,7 +37,7 @@ internal sealed class SqliteConnectionFactory : ISqliteConnectionFactory, IDispo
 
         await using (var walCmd = conn.CreateCommand())
         {
-            walCmd.CommandText = "PRAGMA journal_mode = WAL;";
+            walCmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;";
             await walCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 

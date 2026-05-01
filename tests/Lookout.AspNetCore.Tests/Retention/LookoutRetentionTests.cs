@@ -134,6 +134,65 @@ public sealed class LookoutRetentionTests : IDisposable
         results.Should().BeEmpty();
     }
 
+    // ── 48-hour retention window ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task PruneOlderThan_48hSpan_OnlyLast24hEntriesSurvive_FtsIsInSync()
+    {
+        // Three cohorts spanning 48 h:
+        //   old:    5 entries at t-36h (outside the 24h window → pruned)
+        //   recent: 5 entries at t-12h (inside the 24h window → kept)
+        var uniqueOld = $"OLD_{Guid.NewGuid():N}";
+        var uniqueRecent = $"RECENT_{Guid.NewGuid():N}";
+
+        var oldEntries = Enumerable.Range(0, 5)
+            .Select(i => MakeEntry(DateTimeOffset.UtcNow.AddHours(-36).AddMilliseconds(i),
+                $"{{\"marker\":\"{uniqueOld}_{i}\"}}"))
+            .ToList();
+        var recentEntries = Enumerable.Range(0, 5)
+            .Select(i => MakeEntry(DateTimeOffset.UtcNow.AddHours(-12).AddMilliseconds(i),
+                $"{{\"marker\":\"{uniqueRecent}_{i}\"}}"))
+            .ToList();
+
+        await _storage.WriteAsync(oldEntries);
+        await _storage.WriteAsync(recentEntries);
+
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-24);
+        var deleted = await _storage.PruneOlderThanAsync(cutoff);
+
+        deleted.Should().Be(5, "the five 36h-old entries must be pruned");
+
+        var remaining = await _storage.ReadRecentAsync(20);
+        remaining.Should().HaveCount(5, "the five 12h-old entries must survive");
+
+        // FTS must not return any of the pruned markers.
+        var ftsOld = await _storage.SearchAsync(uniqueOld, 10);
+        ftsOld.Should().BeEmpty("pruned entries must be removed from the FTS index");
+
+        var ftsRecent = await _storage.SearchAsync(uniqueRecent, 10);
+        ftsRecent.Should().HaveCount(5, "surviving entries must still be findable via FTS");
+    }
+
+    // ── entry-count cap at scale ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task PruneToMaxCount_1100Entries_ExactlyCapTo1000()
+    {
+        // Proportional stand-in for the 50,100 → 50,000 production scenario.
+        // Seed 1,100 entries with staggered timestamps so oldest/newest is deterministic.
+        var entries = Enumerable.Range(0, 1_100)
+            .Select(i => MakeEntry(DateTimeOffset.UtcNow.AddMilliseconds(-1_100 + i)))
+            .ToList();
+        await _storage.WriteAsync(entries);
+
+        var deleted = await _storage.PruneToMaxCountAsync(1_000);
+
+        deleted.Should().Be(100, "exactly 100 excess entries must be removed");
+
+        var total = await _storage.GetTotalCountAsync();
+        total.Should().Be(1_000, "exactly 1,000 entries must remain after capping");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private async Task SeedEntriesAsync(int count, DateTimeOffset baseTimestamp)

@@ -35,16 +35,15 @@ internal sealed class LookoutRetentionHostedService : BackgroundService
         {
             var cutoff = DateTimeOffset.UtcNow.AddHours(-_options.MaxAgeHours);
             var byAge = await _storage.PruneOlderThanAsync(cutoff, ct).ConfigureAwait(false);
-            if (byAge > 0)
-                _logger.LogDebug(
-                    "Retention: removed {Count} entries older than {MaxAgeHours}h.",
-                    byAge, _options.MaxAgeHours);
-
             var byCount = await _storage.PruneToMaxCountAsync(_options.MaxEntryCount, ct).ConfigureAwait(false);
-            if (byCount > 0)
+            var pruned = byAge + byCount;
+            if (pruned > 0)
+            {
+                var remaining = await _storage.GetTotalCountAsync(ct).ConfigureAwait(false);
                 _logger.LogDebug(
-                    "Retention: removed {Count} excess entries (cap: {MaxEntryCount}).",
-                    byCount, _options.MaxEntryCount);
+                    "Lookout pruning: deleted {Pruned} entries ({Remaining} remaining).",
+                    pruned, remaining);
+            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
