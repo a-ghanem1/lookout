@@ -1,0 +1,7 @@
+node_modules/
+.docusaurus/
+build/
+
+# copied from assets/ by postinstall — not tracked in git
+static/img/logo.png
+static/img/favicon.png
