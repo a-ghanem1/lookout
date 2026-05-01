@@ -71,7 +71,7 @@
 }
 
 .itemActive {
-  background: var(--color-bg-hover);
+  background: transparent;
   border-left-color: var(--color-accent-fg);
   color: var(--color-accent-fg);
   font-weight: var(--font-weight-medium);
@@ -101,6 +101,11 @@
   color: var(--color-fg-subtle);
 }
 
+.itemCountAlert {
+  color: var(--color-error-fg);
+  font-weight: var(--font-weight-medium);
+}
+
 .searchButton {
   display: flex;
   align-items: center;
@@ -126,8 +131,8 @@
 }
 
 .searchIcon {
-  font-size: var(--text-sm-size);
   flex-shrink: 0;
+  color: var(--color-fg-subtle);
 }
 
 .searchLabel {

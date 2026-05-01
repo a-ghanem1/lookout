@@ -24,9 +24,13 @@
   /* Accent */
   --color-accent-fg: var(--accent-700);
   --color-accent-bg: var(--accent-600);
+  --color-accent-bg-subtle: rgba(99, 102, 241, 0.08);
   --color-accent-bg-hover: var(--accent-700);
   --color-accent-border: var(--accent-500);
   --color-accent-ring: rgba(99, 102, 241, 0.4);
+
+  /* Row hover — distinct from bg-hover (used on buttons) */
+  --color-bg-row-hover: var(--gray-100);
 
   /* Success */
   --color-success-fg: var(--success-600);

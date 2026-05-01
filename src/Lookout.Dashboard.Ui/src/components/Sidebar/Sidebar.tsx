@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { IDE_CHANGED_EVENT, IDE_STORAGE_KEY, readIde } from '../../hooks/useIde';
 import type { IdePreference } from '../../hooks/useIde';
+import { Search } from 'lucide-react';
 import { CacheIcon } from '../Icons/section/CacheIcon';
 import { DumpIcon } from '../Icons/section/DumpIcon';
 import { ExceptionsIcon } from '../Icons/section/ExceptionsIcon';
@@ -33,6 +34,7 @@ interface NavItem {
   route: Route;
   count: number;
   activeFor: Route['name'][];
+  alert?: boolean;
 }
 
 const THEME_LABELS: Record<ThemeMode, string> = {
@@ -101,6 +103,7 @@ export function Sidebar({ route, counts, themeMode, onThemeCycle, onSearch }: Si
       route: { name: 'exceptions' },
       count: counts.exceptions,
       activeFor: ['exceptions', 'exception-detail'],
+      alert: counts.exceptions > 0,
     },
     {
       label: 'Logs',
@@ -158,7 +161,7 @@ export function Sidebar({ route, counts, themeMode, onThemeCycle, onSearch }: Si
           data-testid="sidebar-search-button"
           aria-label="Search (⌘K)"
         >
-          <span className={styles.searchIcon}>⌕</span>
+          <Search size={14} strokeWidth={1.75} className={styles.searchIcon} aria-hidden />
           <span className={styles.searchLabel}>Search…</span>
           <kbd className={styles.searchKbd}>⌘K</kbd>
         </button>
@@ -172,6 +175,7 @@ export function Sidebar({ route, counts, themeMode, onThemeCycle, onSearch }: Si
               itemHref={href(item.route)}
               count={item.count}
               active={item.activeFor.includes(route.name)}
+              alert={item.alert}
             />
           ))}
         </nav>
@@ -238,9 +242,10 @@ interface SidebarItemProps {
   itemHref: string;
   count: number;
   active: boolean;
+  alert?: boolean;
 }
 
-function SidebarItem({ label, icon, itemHref, count, active }: SidebarItemProps) {
+function SidebarItem({ label, icon, itemHref, count, active, alert }: SidebarItemProps) {
   return (
     <a
       href={itemHref}
@@ -249,7 +254,10 @@ function SidebarItem({ label, icon, itemHref, count, active }: SidebarItemProps)
     >
       <span className={styles.itemIcon}>{icon}</span>
       <span className={styles.itemLabel}>{label}</span>
-      <span className={styles.itemCount} data-testid={`sidebar-count-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+      <span
+        className={`${styles.itemCount} ${alert ? styles.itemCountAlert : ''}`}
+        data-testid={`sidebar-count-${label.toLowerCase().replace(/\s+/g, '-')}`}
+      >
         {count}
       </span>
     </a>
