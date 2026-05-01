@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EntryDto, JobEnqueueEntryContent, JobExecutionEntryContent } from '../api/types';
 import { JobBody } from './JobPage';
 
@@ -121,6 +121,22 @@ describe('JobPage — enqueue entry', () => {
 });
 
 describe('JobPage — execution entry', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ entries: [], nextBefore: null }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('renders job-execution-detail testid', () => {
     render(<JobBody entry={jobExecutionEntry()} />);
     expect(screen.getByTestId('job-execution-detail')).toBeInTheDocument();
@@ -169,6 +185,31 @@ describe('JobPage — execution entry', () => {
   it('does not render enqueue request link when enqueueRequestId is null', () => {
     render(<JobBody entry={jobExecutionEntry('Succeeded', { enqueueRequestId: null })} />);
     expect(screen.queryByTestId('enqueue-request-link')).not.toBeInTheDocument();
+  });
+
+  it('does not render enqueue-entry-link when lookup returns empty', async () => {
+    render(<JobBody entry={jobExecutionEntry()} />);
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    expect(screen.queryByTestId('enqueue-entry-link')).not.toBeInTheDocument();
+  });
+
+  it('renders enqueue-entry-link when lookup returns an enqueue entry', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            entries: [{ id: 'enq-entry-abc', type: 'job-enqueue', timestamp: 0, tags: {}, content: {} }],
+            nextBefore: null,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ) as unknown as typeof fetch,
+    );
+    render(<JobBody entry={jobExecutionEntry()} />);
+    const link = await screen.findByTestId('enqueue-entry-link');
+    expect(link).toHaveAttribute('href', '#/jobs/enq-entry-abc');
+    expect(link).toHaveTextContent('View arguments →');
   });
 
   it('truncates long enqueue request id to 8 chars in link text', () => {

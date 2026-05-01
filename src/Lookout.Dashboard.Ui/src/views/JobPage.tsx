@@ -1,5 +1,5 @@
-import { getEntry } from '../api/client';
-import type { EntryDto, JobEnqueueEntryContent, JobExecutionEntryContent } from '../api/types';
+import { getEntry, listEntries } from '../api/client';
+import type { EntryDto, EntryListResponse, JobEnqueueEntryContent, JobExecutionEntryContent } from '../api/types';
 import { useFetch } from '../api/useFetch';
 import { formatDuration, formatTimestamp } from '../format';
 import styles from './JobPage.module.css';
@@ -120,6 +120,13 @@ function JobEnqueueBody({ entry }: { entry: EntryDto }) {
 function JobExecutionBody({ entry }: { entry: EntryDto }) {
   const content = entry.content as JobExecutionEntryContent;
   const succeeded = content?.state === 'Succeeded';
+  const jobId = content?.jobId ?? '';
+
+  const enqueueState = useFetch<EntryListResponse>(
+    `job-enq:${jobId}`,
+    (signal) => listEntries({ type: 'job-enqueue', tags: [{ key: 'job.id', value: jobId }], limit: 1 }, signal),
+  );
+  const enqueueEntry = enqueueState.data?.entries?.[0];
 
   return (
     <div className={styles.root} data-testid="job-execution-detail">
@@ -155,6 +162,18 @@ function JobExecutionBody({ entry }: { entry: EntryDto }) {
               {content.enqueueRequestId.length > 8
                 ? `${content.enqueueRequestId.slice(0, 8)}…`
                 : content.enqueueRequestId}
+            </a>
+          </div>
+        ) : null}
+        {enqueueEntry ? (
+          <div>
+            <div className={styles.metaLabel}>Enqueue entry</div>
+            <a
+              href={`#/jobs/${encodeURIComponent(enqueueEntry.id)}`}
+              className={styles.metaLink}
+              data-testid="enqueue-entry-link"
+            >
+              View arguments →
             </a>
           </div>
         ) : null}

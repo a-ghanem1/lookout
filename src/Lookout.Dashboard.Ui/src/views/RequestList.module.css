@@ -123,6 +123,16 @@
   background: var(--color-bg-hover);
 }
 
+.noiseRow {
+  opacity: 0.4;
+}
+
+.rowSelected {
+  outline: 2px solid var(--color-accent-border);
+  outline-offset: -2px;
+  background: var(--color-accent-bg-subtle) !important;
+}
+
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

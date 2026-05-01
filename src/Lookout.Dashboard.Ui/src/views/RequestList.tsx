@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listEntries } from '../api/client';
 import type { EntryDto, HttpEntryContent } from '../api/types';
 import { useFetch } from '../api/useFetch';
@@ -39,6 +39,7 @@ export function RequestList() {
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [focused, setFocused] = useState(false);
   const [showNoise, setShowNoise] = useState(readShowNoise);
+  const [keyboardIndex, setKeyboardIndex] = useState(-1);
 
   const key = useMemo(
     () => JSON.stringify({ t: 'http', ...filters, tags: activeTags }),
@@ -62,12 +63,7 @@ export function RequestList() {
     { poll: 2000, idle: !focused },
   );
 
-  const allEntries = state.data?.entries ?? [];
-
-  const entries = useMemo(
-    () => (showNoise ? allEntries : allEntries.filter((e) => !isNoise(e))),
-    [allEntries, showNoise],
-  );
+  const entries = state.data?.entries ?? [];
 
   const hideUser = entries.every((e) => {
     const c = e.content as HttpEntryContent | undefined;
@@ -81,6 +77,38 @@ export function RequestList() {
       return next;
     });
   }
+
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+  const keyboardIndexRef = useRef(keyboardIndex);
+  keyboardIndexRef.current = keyboardIndex;
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
+      if (e.key === 'j') {
+        e.preventDefault();
+        setKeyboardIndex((i) => Math.min(i + 1, entriesRef.current.length - 1));
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        setKeyboardIndex((i) => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter' && keyboardIndexRef.current >= 0) {
+        const entry = entriesRef.current[keyboardIndexRef.current];
+        if (entry) {
+          const dest = entry.requestId ?? entry.id;
+          window.location.hash = `#/requests/${encodeURIComponent(dest)}`;
+        }
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    if (keyboardIndex < 0) return;
+    (document.querySelector(`[data-row-index="${keyboardIndex}"]`) as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
+  }, [keyboardIndex]);
 
   return (
     <div className={styles.root} data-testid="request-list">
@@ -133,7 +161,7 @@ export function RequestList() {
           aria-pressed={showNoise}
           data-testid="show-noise-toggle"
         >
-          {showNoise ? 'Hide noise' : 'Show noise'}
+          {showNoise ? 'Dim noise' : 'Show noise'}
         </button>
       </section>
 
@@ -145,18 +173,18 @@ export function RequestList() {
         </div>
       ) : null}
 
-      {allEntries.length > 0 && (
+      {entries.length > 0 && (
         <div className={styles.summary} data-testid="request-summary">
-          Showing {entries.length} of {allEntries.length} requests
+          {entries.length} request{entries.length !== 1 ? 's' : ''}
         </div>
       )}
 
-      <RequestTable entries={entries} loading={state.loading} hideUser={hideUser} />
+      <RequestTable entries={entries} loading={state.loading} hideUser={hideUser} showNoise={showNoise} keyboardIndex={keyboardIndex} />
     </div>
   );
 }
 
-function RequestTable({ entries, loading, hideUser }: { entries: EntryDto[]; loading: boolean; hideUser: boolean }) {
+function RequestTable({ entries, loading, hideUser, showNoise, keyboardIndex }: { entries: EntryDto[]; loading: boolean; hideUser: boolean; showNoise: boolean; keyboardIndex: number }) {
   if (!loading && entries.length === 0) {
     return (
       <div className={styles.tableWrap}>
@@ -185,8 +213,15 @@ function RequestTable({ entries, loading, hideUser }: { entries: EntryDto[]; loa
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry) => (
-            <RequestRow key={entry.id} entry={entry} hideUser={hideUser} />
+          {entries.map((entry, index) => (
+            <RequestRow
+              key={entry.id}
+              entry={entry}
+              hideUser={hideUser}
+              dimmed={!showNoise && isNoise(entry)}
+              index={index}
+              selected={index === keyboardIndex}
+            />
           ))}
         </tbody>
       </table>
@@ -194,7 +229,7 @@ function RequestTable({ entries, loading, hideUser }: { entries: EntryDto[]; loa
   );
 }
 
-function RequestRow({ entry, hideUser }: { entry: EntryDto; hideUser: boolean }) {
+function RequestRow({ entry, hideUser, dimmed, index, selected }: { entry: EntryDto; hideUser: boolean; dimmed: boolean; index: number; selected: boolean }) {
   const content = entry.content as HttpEntryContent | undefined;
   const method = entry.tags['http.method'] ?? content?.method ?? '—';
   const path = entry.tags['http.path'] ?? content?.path ?? '—';
@@ -224,7 +259,9 @@ function RequestRow({ entry, hideUser }: { entry: EntryDto; hideUser: boolean })
 
   return (
     <tr
-      className={styles.row}
+      className={`${styles.row}${dimmed ? ` ${styles.noiseRow}` : ''}${selected ? ` ${styles.rowSelected}` : ''}`}
+      data-row-index={index}
+      data-noise={dimmed ? 'true' : undefined}
       onClick={go}
       tabIndex={0}
       onKeyDown={(e) => {

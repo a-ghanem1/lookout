@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EntryListResponse } from '../api/types';
@@ -387,5 +387,124 @@ describe('RequestList', () => {
     render(<RequestList />);
     await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
     expect(screen.queryByTestId('job-count-badge')).not.toBeInTheDocument();
+  });
+});
+
+function makeNoiseResponse(): EntryListResponse {
+  return {
+    entries: [
+      {
+        id: 'noise-entry',
+        type: 'http',
+        timestamp: Date.now() - 500,
+        durationMs: 0.3,
+        tags: { 'http.method': 'GET', 'http.path': '/favicon.ico', 'http.status': '404' },
+        content: {
+          method: 'GET',
+          path: '/favicon.ico',
+          queryString: '',
+          statusCode: 404,
+          durationMs: 0.3,
+          requestHeaders: {},
+          responseHeaders: {},
+        },
+      },
+      {
+        id: 'normal-entry',
+        type: 'http',
+        timestamp: Date.now() - 1000,
+        durationMs: 42,
+        tags: { 'http.method': 'GET', 'http.path': '/api/data', 'http.status': '200' },
+        content: {
+          method: 'GET',
+          path: '/api/data',
+          queryString: '',
+          statusCode: 200,
+          durationMs: 42,
+          requestHeaders: {},
+          responseHeaders: {},
+        },
+      },
+    ],
+    nextBefore: null,
+  };
+}
+
+describe('RequestList — noise dimming', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeNoiseResponse()), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it('renders noise rows with data-noise=true when showNoise is off', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    const rows = screen.getAllByTestId('request-row');
+    const noiseRow = rows.find((r) => r.getAttribute('data-noise') === 'true');
+    expect(noiseRow).toBeDefined();
+  });
+
+  it('does not mark normal rows as noise', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    const normalRow = screen.getAllByTestId('request-row').find((r) => r.getAttribute('data-noise') !== 'true');
+    expect(normalRow).toBeDefined();
+  });
+
+  it('removes data-noise attribute after toggling Show noise on', async () => {
+    const user = userEvent.setup();
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    expect(screen.getAllByTestId('request-row').some((r) => r.getAttribute('data-noise') === 'true')).toBe(true);
+
+    await user.click(screen.getByTestId('show-noise-toggle'));
+    expect(screen.getAllByTestId('request-row').some((r) => r.getAttribute('data-noise') === 'true')).toBe(false);
+  });
+});
+
+describe('RequestList — keyboard navigation', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(makeResponse()), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('selects the first row on j press', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    fireEvent.keyDown(document, { key: 'j' });
+    const rows = screen.getAllByTestId('request-row');
+    expect(rows[0]).toHaveAttribute('data-row-index', '0');
+  });
+
+  it('does not fire j when focus is on an input', async () => {
+    render(<RequestList />);
+    await waitFor(() => expect(screen.getAllByTestId('request-row')).toHaveLength(2));
+    const input = screen.getByPlaceholderText('/api/…');
+    fireEvent.keyDown(input, { key: 'j', target: input });
+    const rows = screen.getAllByTestId('request-row');
+    expect(rows[0]?.className).not.toContain('rowSelected');
   });
 });

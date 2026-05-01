@@ -20,7 +20,7 @@ export function LookoutLogo(props: SVGProps<SVGSVGElement>) {
         d="M 65 78 L 74 78 A 4 4 0 0 0 78 74 L 78 65"
         fill="none"
         stroke="currentColor"
-        strokeWidth="8"
+        strokeWidth="6"
         strokeLinecap="square"
       />
       <circle cx="50" cy="50" r="4" fill="currentColor" />

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type {
@@ -96,6 +96,13 @@ describe('RequestDetail', () => {
     render(<DetailBody entries={[httpEntry]} />);
     const preText = document.querySelector('pre')?.textContent ?? '';
     expect(preText).toContain('"ok": true');
+  });
+
+  it('shows body size as bytes, not chars', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    const sizeEl = screen.getByTestId('body-size');
+    expect(sizeEl.textContent).toMatch(/\d+ B$/);
+    expect(sizeEl.textContent).not.toContain('chars');
   });
 
   it('renders one row per db entry (ef and sql combined)', () => {
@@ -1189,5 +1196,11 @@ describe('RequestDetail — Jobs section', () => {
   it('shows side panel when only job entries present', () => {
     render(<DetailBody entries={[httpEntry, jobEnqueueEntry('enq-1')]} />);
     expect(screen.getByTestId('job-section')).toBeInTheDocument();
+  });
+
+  it('navigates back to list on Escape key', () => {
+    render(<DetailBody entries={[httpEntry]} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(window.location.hash).toBe('#/');
   });
 });

@@ -18,7 +18,7 @@ import { useFetch } from '../api/useFetch';
 import { MethodBadge, StatusBadge } from '../components/Badge';
 import { JsonTree } from '../components/JsonTree/JsonTree';
 import { RequestTimeline } from '../components/Timeline/RequestTimeline';
-import { formatDuration, formatTimestamp, tryPrettyJson } from '../format';
+import { formatBytes, formatDuration, formatTimestamp, tryPrettyJson } from '../format';
 import { formatSql, sqlPreview } from '../lib/sqlFormatter';
 import type { SyntaxToken, TokenType } from '../lib/syntaxHighlight';
 import { tokenizeJson, tokenizeSql } from '../lib/syntaxHighlight';
@@ -78,6 +78,14 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
     const handler = (e: Event) => setIde((e as CustomEvent<IdePreference>).detail);
     window.addEventListener(IDE_CHANGED_EVENT, handler);
     return () => window.removeEventListener(IDE_CHANGED_EVENT, handler);
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') window.location.hash = '#/';
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, []);
 
   if (!http) {
@@ -295,7 +303,7 @@ function BodySection({ title, body }: { title: string; body: string | undefined 
   return (
     <details className={styles.section} open>
       <summary className={styles.sectionSummary}>
-        {title} <span className={styles.caption}>{body.length} chars</span>
+        {title} <span className={styles.caption} data-testid="body-size">{formatBytes(new TextEncoder().encode(body).byteLength)}</span>
       </summary>
       <div className={styles.sectionBody}>
         {pretty ? (
