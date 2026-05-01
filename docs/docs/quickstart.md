@@ -58,10 +58,16 @@ app.MapLookout();
 dotnet run
 ```
 
-Open the Lookout dashboard in your browser:
+Open the Lookout dashboard in your browser. The port is printed by `dotnet run`:
 
 ```
-https://localhost:{port}/lookout
+Now listening on: https://localhost:5001
+```
+
+So navigate to:
+
+```
+https://localhost:5001/lookout
 ```
 
 Hit any endpoint in your app. The request row appears in the dashboard within milliseconds.
@@ -86,6 +92,19 @@ Click any row to open the request detail — SQL text with parameters, log outpu
 ## Your first N+1
 
 If your code loads a collection then queries each item in a loop, Lookout flags it automatically:
+
+```csharp
+// This produces one query per order — a classic N+1
+var orders = await db.Orders.ToListAsync();
+foreach (var order in orders)
+{
+    var items = await db.OrderItems
+        .Where(i => i.OrderId == order.Id)
+        .ToListAsync();
+}
+```
+
+The dashboard shows a warning banner for that request:
 
 ```
 N+1 detected — 12 identical queries. Stack trace: OrderService.cs:47

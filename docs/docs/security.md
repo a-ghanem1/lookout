@@ -30,7 +30,9 @@ builder.Services.AddLookout(options =>
 });
 ```
 
-`AllowInEnvironments` fully replaces the default list — `Development` is not automatically included.
+:::warning AllowInEnvironments replaces the default list
+Setting `AllowInEnvironments` **replaces** `["Development"]` entirely — `Development` is not automatically kept. Always include every environment you want Lookout active in.
+:::
 
 ### Full opt-out (escape hatch)
 

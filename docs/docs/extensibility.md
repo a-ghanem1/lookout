@@ -66,6 +66,7 @@ public sealed record LookoutEntry(
 ### Minimal example
 
 ```csharp
+using System.Diagnostics;
 using System.Text.Json;
 using Lookout.Core;
 using Microsoft.AspNetCore.Http;

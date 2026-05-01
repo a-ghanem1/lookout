@@ -160,7 +160,12 @@ For custom redaction logic, use the `Redact` callback — it runs after built-in
 ```csharp
 options.Redact = entry =>
 {
-    // Return the original entry or a modified copy
+    // Scrub a custom field from JSON body captures
+    if (entry.Type == "http" && entry.Content.Contains("loyaltyCardNumber"))
+    {
+        var scrubbed = Regex.Replace(entry.Content, @"""loyaltyCardNumber""\s*:\s*""[^""]*""", @"""loyaltyCardNumber"":""***""");
+        return entry with { Content = scrubbed };
+    }
     return entry;
 };
 ```

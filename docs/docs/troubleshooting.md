@@ -84,8 +84,8 @@ options.Ef.N1DetectionMinOccurrences = 2;  // flag 2+ occurrences
 **Fix:**
 
 ```csharp
+app.UseLookout();   // before UseRouting — captures the full request lifecycle
 app.UseRouting();
-app.UseLookout();   // after UseRouting
 app.MapLookout();   // register the endpoint
 app.MapControllers();
 ```

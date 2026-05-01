@@ -26,7 +26,7 @@ Lookout is not trying to replace MiniProfiler.NET or Aspire Dashboard. Each tool
 | Production observability | No — dev-only | No | Yes |
 | OpenTelemetry integration | No | No | Yes |
 | In-page overlay (no separate tab) | No | Yes | No |
-| Last major release | 2026 | 2022 | Active |
+| Last major release | 2026 | 2022 | 2025 (actively developed) |
 
 ---
 
