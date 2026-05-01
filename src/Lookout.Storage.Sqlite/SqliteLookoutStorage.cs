@@ -372,11 +372,10 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         await using var conn = await _factory.OpenAsync(ct).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
 
-        // Use snippet() to get highlighted text. Markers are §…§ — safe delimiters that
-        // don't appear in typical diagnostic content and survive JSON round-trips.
+        // The FTS table is contentless (content=''), so snippet() always returns "".
+        // Instead, join back to entries and read content_json to build a meaningful summary.
         cmd.CommandText =
-            "SELECT e.id, e.type, e.timestamp_utc, e.request_id, " +
-            "snippet(entries_fts, 1, '§', '§', '…', 32) AS snip " +
+            "SELECT e.id, e.type, e.timestamp_utc, e.request_id, e.content_json " +
             "FROM entries e " +
             "JOIN entries_fts ON entries_fts.rowid = e.rowid " +
             "WHERE entries_fts MATCH @q " +
@@ -389,14 +388,67 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
+            var type = reader.GetString(1);
+            var contentJson = reader.IsDBNull(4) ? "{}" : reader.GetString(4);
             results.Add(new SearchResult(
                 Id: Guid.Parse(reader.GetString(0)),
-                Type: reader.GetString(1),
+                Type: type,
                 Timestamp: DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)),
                 RequestId: reader.IsDBNull(3) ? null : reader.GetString(3),
-                Snippet: reader.IsDBNull(4) ? string.Empty : reader.GetString(4)));
+                Snippet: BuildSummary(type, contentJson, query)));
         }
         return results;
+    }
+
+    private static string BuildSummary(string type, string contentJson, string query)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(contentJson);
+            var root = doc.RootElement;
+            var raw = type switch
+            {
+                "http"     => GetStr(root, "method") + " " + GetStr(root, "path"),
+                "ef"       => FirstLine(GetStr(root, "commandText")),
+                "sql"      => FirstLine(GetStr(root, "commandText")),
+                "exception"=> GetStr(root, "exceptionType") + ": " + GetStr(root, "message"),
+                "log"      => GetStr(root, "message"),
+                "cache"    => GetStr(root, "operation") + " " + GetStr(root, "key"),
+                "http-out" => GetStr(root, "method") + " " + GetStr(root, "url"),
+                "job-enqueue" or "job-execution"
+                           => GetStr(root, "methodName") + " → " + GetStr(root, "state"),
+                "dump"     => GetStr(root, "label", GetStr(root, "valueType", "dump")),
+                _          => "",
+            };
+            if (raw.Length > 120) raw = raw[..117] + "…";
+            return HighlightFirstTerm(raw, query);
+        }
+        catch { return ""; }
+    }
+
+    private static string GetStr(System.Text.Json.JsonElement el, string prop, string fallback = "")
+    {
+        if (el.TryGetProperty(prop, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String)
+            return v.GetString() ?? fallback;
+        return fallback;
+    }
+
+    private static string FirstLine(string sql)
+    {
+        var nl = sql.IndexOfAny(['\n', '\r']);
+        if (nl > 0) sql = sql[..nl].TrimEnd();
+        return sql.Length > 100 ? sql[..97] + "…" : sql;
+    }
+
+    private static string HighlightFirstTerm(string text, string query)
+    {
+        // Pull the first bare word from the FTS query (strip *, quotes, boolean ops).
+        var term = System.Text.RegularExpressions.Regex
+            .Match(query, @"[A-Za-z0-9_\-]{2,}").Value;
+        if (string.IsNullOrEmpty(term)) return text;
+        var idx = text.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return text;
+        return text[..idx] + "§" + text[idx..(idx + term.Length)] + "§" + text[(idx + term.Length)..];
     }
 
     public async Task<IReadOnlyList<LogHistogramBucket>> GetLogHistogramAsync(
