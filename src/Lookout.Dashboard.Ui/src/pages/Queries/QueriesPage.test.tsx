@@ -193,3 +193,100 @@ describe('QueriesPage', () => {
     });
   });
 });
+
+describe('QueryDetail (via QueriesPage id prop)', () => {
+  const detailEntry = {
+    id: 'id-ef1',
+    type: 'ef',
+    timestamp: Date.now() - 5000,
+    durationMs: 350,
+    requestId: 'req-parent',
+    tags: {},
+    content: {
+      commandText: 'SELECT * FROM "Orders" WHERE "Id" = @p0',
+      durationMs: 350,
+      parameters: [{ name: '@p0', value: '42', dbType: 'Int32' }],
+      stack: [{ method: 'OrdersRepository.GetById(int)', file: '/app/Repositories/OrdersRepository.cs', line: 55 }],
+      commandType: 'Reader',
+      rowsAffected: 1,
+      dbContextType: 'MyApp.Data.AppDbContext',
+    },
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubDetail(entry: unknown) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify(entry), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ) as unknown as typeof fetch,
+    );
+  }
+
+  it('renders detail view when id prop is passed', async () => {
+    stubDetail(detailEntry);
+    render(<QueriesPage id="id-ef1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/SELECT \* FROM "Orders"/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('link', { name: /parent request/i })).toBeInTheDocument();
+  });
+
+  it('shows full SQL, parameters, and stack trace', async () => {
+    stubDetail(detailEntry);
+    render(<QueriesPage id="id-ef1" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/@p0/).length).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByTestId('query-stack')).toBeInTheDocument();
+    expect(screen.getByText(/OrdersRepository.GetById/)).toBeInTheDocument();
+  });
+
+  it('back link points to #/queries', async () => {
+    stubDetail(detailEntry);
+    render(<QueriesPage id="id-ef1" />);
+
+    await waitFor(() => {
+      const links = screen.getAllByRole('link', { name: /queries/i });
+      expect(links[0]).toHaveAttribute('href', '#/queries');
+    });
+  });
+
+  it('shows loading state while fetch is pending', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})) as unknown as typeof fetch);
+    render(<QueriesPage id="id-ef1" />);
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  });
+
+  it('shows error state when fetch fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response('not found', { status: 404, headers: { 'content-type': 'text/plain' } }),
+      ) as unknown as typeof fetch,
+    );
+    render(<QueriesPage id="id-ef1" />);
+    await waitFor(() => {
+      expect(screen.getByText(/entry: 404/i)).toBeInTheDocument();
+    });
+  });
+
+  it('omits parent request link when requestId is absent', async () => {
+    stubDetail({ ...detailEntry, requestId: undefined });
+    render(<QueriesPage id="id-ef1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/SELECT \* FROM/)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('link', { name: /parent request/i })).not.toBeInTheDocument();
+  });
+});

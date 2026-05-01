@@ -339,6 +339,16 @@ describe('RequestDetail — Outbound HTTP section', () => {
     expect(screen.getByTestId('http-out-error-badge')).toBeInTheDocument();
   });
 
+  it('shows "View full details" link pointing to #/http-clients/:id when expanded', async () => {
+    const user = userEvent.setup();
+    render(<DetailBody entries={[httpEntry, httpOutEntry('out-1')]} />);
+    const btn = screen.getByTestId('http-out-row').querySelector('button')!;
+    await user.click(btn);
+    const link = screen.getByTestId('http-out-view-link');
+    expect(link).toHaveAttribute('href', '#/http-clients/out-1');
+    expect(link).toHaveTextContent('View full details');
+  });
+
   it('shows error details in expanded row', async () => {
     const user = userEvent.setup();
     render(

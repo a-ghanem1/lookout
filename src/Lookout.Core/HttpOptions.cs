@@ -11,15 +11,15 @@ public sealed class HttpOptions
 
     /// <summary>
     /// When true, outbound request bodies are captured (content-type gated,
-    /// size-capped by <see cref="OutboundBodyMaxBytes"/>). Default: <c>false</c>.
+    /// size-capped by <see cref="OutboundBodyMaxBytes"/>). Default: <c>true</c>.
     /// </summary>
-    public bool CaptureOutboundRequestBody { get; set; }
+    public bool CaptureOutboundRequestBody { get; set; } = true;
 
     /// <summary>
     /// When true, outbound response bodies are captured (content-type gated,
-    /// size-capped by <see cref="OutboundBodyMaxBytes"/>). Default: <c>false</c>.
+    /// size-capped by <see cref="OutboundBodyMaxBytes"/>). Default: <c>true</c>.
     /// </summary>
-    public bool CaptureOutboundResponseBody { get; set; }
+    public bool CaptureOutboundResponseBody { get; set; } = true;
 
     /// <summary>
     /// Maximum number of bytes captured per outbound request or response body.

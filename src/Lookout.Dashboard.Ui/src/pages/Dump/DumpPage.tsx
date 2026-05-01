@@ -4,6 +4,8 @@ import { listEntries } from '../../api/client';
 import type { DumpEntryContent, EntryDto } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
+import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatRelative } from '../../format';
 import styles from './DumpPage.module.css';
 
@@ -60,6 +62,7 @@ function getCallerDisplay(content: DumpEntryContent): string {
 }
 
 export function DumpPage({ id: _id }: { id?: string } = {}) {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [labelSearch, setLabelSearch] = useState('');
   const [callerSearch, setCallerSearch] = useState('');
   const [debouncedLabelSearch, setDebouncedLabelSearch] = useState('');
@@ -85,7 +88,7 @@ export function DumpPage({ id: _id }: { id?: string } = {}) {
     setLoading(true);
     setError(undefined);
 
-    listEntries({ type: 'dump', limit: 200 }, controller.signal)
+    listEntries({ type: 'dump', tags: activeTags.length > 0 ? activeTags : undefined, limit: 200 }, controller.signal)
       .then((resp) => {
         setEntries(resp.entries);
         setLoading(false);
@@ -98,7 +101,7 @@ export function DumpPage({ id: _id }: { id?: string } = {}) {
       });
 
     return () => controller.abort();
-  }, [retryCount]);
+  }, [activeTags, retryCount]);
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -138,6 +141,7 @@ export function DumpPage({ id: _id }: { id?: string } = {}) {
         onChange={(e) => setCallerSearch(e.target.value)}
         aria-label="Search caller file"
       />
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
     </div>
   );
 

@@ -1,11 +1,83 @@
 import { Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { listEntries } from '../../api/client';
-import type { EntryDto, LogEntryContent } from '../../api/types';
+import { getLogHistogram, listEntries } from '../../api/client';
+import type { EntryDto, LogEntryContent, LogHistogramBucket } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
+import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatRelative } from '../../format';
 import styles from './LogsPage.module.css';
+
+const LEVEL_COLORS: Record<string, string> = {
+  trace: 'var(--color-fg-subtle)',
+  debug: 'var(--color-fg-muted)',
+  information: 'var(--color-info-fg)',
+  warning: 'var(--color-warn-fg)',
+  error: 'var(--color-error-fg)',
+  critical: 'var(--color-error-fg)',
+};
+
+function LogVolumeHeader() {
+  const [buckets, setBuckets] = useState<LogHistogramBucket[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getLogHistogram(12, controller.signal)
+      .then((data) => { if (Array.isArray(data)) setBuckets(data); })
+      .catch(() => {/* ignore */});
+    return () => controller.abort();
+  }, []);
+
+  if (buckets.length === 0) return null;
+
+  const totals = buckets.map((b) =>
+    b.byLevel.trace + b.byLevel.debug + b.byLevel.information +
+    b.byLevel.warning + b.byLevel.error + b.byLevel.critical,
+  );
+  const maxTotal = Math.max(...totals, 1);
+  const BAR_H = 32;
+  const BAR_W = 8;
+  const GAP = 3;
+  const svgW = buckets.length * (BAR_W + GAP);
+
+  return (
+    <div className={styles.histogramWrap} data-testid="log-histogram">
+      <svg width={svgW} height={BAR_H} aria-label="Log volume over time">
+        {buckets.map((b, i) => {
+          const total = totals[i];
+          const x = i * (BAR_W + GAP);
+          let yOffset = BAR_H;
+          return (
+            <g key={i}>
+              {(['critical', 'error', 'warning', 'information', 'debug', 'trace'] as const).map((level) => {
+                const count = b.byLevel[level];
+                if (count === 0) return null;
+                const h = Math.max(1, Math.round((count / maxTotal) * BAR_H));
+                yOffset -= h;
+                return (
+                  <rect
+                    key={level}
+                    x={x}
+                    y={yOffset}
+                    width={BAR_W}
+                    height={h}
+                    fill={LEVEL_COLORS[level]}
+                    opacity={0.85}
+                  />
+                );
+              })}
+              {total === 0 && (
+                <rect x={x} y={BAR_H - 2} width={BAR_W} height={2} fill="var(--color-border-muted)" />
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      <span className={styles.histogramLabel}>Last {buckets.length} intervals</span>
+    </div>
+  );
+}
 
 type LevelFilter = 'all' | 'warn+' | 'error+';
 
@@ -57,6 +129,7 @@ function truncateCategory(category: string): string {
 }
 
 export function LogsPage() {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
   const [categorySearch, setCategorySearch] = useState('');
   const [messageSearch, setMessageSearch] = useState('');
@@ -83,7 +156,7 @@ export function LogsPage() {
     setLoading(true);
     setError(undefined);
 
-    listEntries({ type: 'log', limit: 200 }, controller.signal)
+    listEntries({ type: 'log', tags: activeTags.length > 0 ? activeTags : undefined, limit: 200 }, controller.signal)
       .then((resp) => {
         setEntries(resp.entries);
         setLoading(false);
@@ -96,7 +169,7 @@ export function LogsPage() {
       });
 
     return () => controller.abort();
-  }, [retryCount]);
+  }, [activeTags, retryCount]);
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -121,6 +194,7 @@ export function LogsPage() {
 
   const filterSlot = (
     <div className={styles.filterBar}>
+      <LogVolumeHeader />
       <div className={styles.filterGroup} role="group" aria-label="Level filter">
         {(['all', 'warn+', 'error+'] as const).map((l) => (
           <button
@@ -149,6 +223,7 @@ export function LogsPage() {
         onChange={(e) => setMessageSearch(e.target.value)}
         aria-label="Search message"
       />
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
     </div>
   );
 

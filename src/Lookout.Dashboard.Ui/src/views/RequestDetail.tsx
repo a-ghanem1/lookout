@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getRequestEntries } from '../api/client';
 import type {
   CacheEntryContent,
@@ -16,11 +16,28 @@ import type {
 } from '../api/types';
 import { useFetch } from '../api/useFetch';
 import { MethodBadge, StatusBadge } from '../components/Badge';
+import { JsonTree } from '../components/JsonTree/JsonTree';
+import { RequestTimeline } from '../components/Timeline/RequestTimeline';
 import { formatDuration, formatTimestamp, tryPrettyJson } from '../format';
 import { formatSql, sqlPreview } from '../lib/sqlFormatter';
 import type { SyntaxToken, TokenType } from '../lib/syntaxHighlight';
 import { tokenizeJson, tokenizeSql } from '../lib/syntaxHighlight';
+import { IDE_CHANGED_EVENT, IdeContext, ideUrl, readIde, useIdeContext } from '../hooks/useIde';
+import type { IdePreference } from '../hooks/useIde';
 import styles from './RequestDetail.module.css';
+
+function buildCurl(content: HttpEntryContent): string {
+  const url = `${window.location.origin}${content.path}${content.queryString ?? ''}`;
+  const parts = [`curl -X ${content.method} '${url}'`];
+  for (const [k, v] of Object.entries(content.requestHeaders ?? {})) {
+    parts.push(`  -H '${k}: ${v}'`);
+  }
+  if (content.requestBody) {
+    const escaped = content.requestBody.replace(/'/g, "'\\''");
+    parts.push(`  -d '${escaped}'`);
+  }
+  return parts.join(' \\\n');
+}
 
 export function RequestDetail({ id }: { id: string }) {
   const state = useFetch<EntryDto[]>(`request:${id}`, (signal) => getRequestEntries(id, signal));
@@ -54,6 +71,14 @@ export function RequestDetail({ id }: { id: string }) {
 
 export function DetailBody({ entries }: { entries: EntryDto[] }) {
   const http = entries.find((e) => e.type === 'http');
+  const [curlCopied, setCurlCopied] = useState(false);
+  const [ide, setIde] = useState<IdePreference>(readIde);
+
+  useEffect(() => {
+    const handler = (e: Event) => setIde((e as CustomEvent<IdePreference>).detail);
+    window.addEventListener(IDE_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(IDE_CHANGED_EVENT, handler);
+  }, []);
 
   if (!http) {
     return (
@@ -70,6 +95,7 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
 
   const content = http.content as HttpEntryContent;
   const status = content?.statusCode ?? 0;
+  const childEntries = entries.filter((e) => e.type !== 'http');
   const hasDbEntries = entries.some((e) => e.type === 'ef' || e.type === 'sql');
   const httpOutEntries = entries
     .filter((e) => e.type === 'http-out')
@@ -99,7 +125,26 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
     dumpEntries.length > 0 ||
     jobEntries.length > 0;
 
+  function onScrollToEntry(id: string) {
+    document.getElementById(`entry-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function copyCurl() {
+    const cmd = buildCurl(content);
+    void navigator.clipboard.writeText(cmd).catch(() => {
+      const el = document.createElement('textarea');
+      el.value = cmd;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    });
+    setCurlCopied(true);
+    setTimeout(() => setCurlCopied(false), 2000);
+  }
+
   return (
+    <IdeContext.Provider value={ide}>
     <div className={styles.root} data-testid="request-detail">
       <a className={styles.back} href="#/">
         ← Back to requests
@@ -113,6 +158,15 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
             {content.queryString}
           </span>
           <StatusBadge status={status} />
+          <button
+            type="button"
+            className={styles.curlBtn}
+            onClick={copyCurl}
+            data-testid="copy-curl-btn"
+            title="Copy as cURL"
+          >
+            {curlCopied ? '✓ Copied' : 'cURL'}
+          </button>
         </div>
       </header>
 
@@ -122,6 +176,12 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
         <Meta label="User" value={content.user ?? '—'} />
         <Meta label="Request ID" value={http.requestId ?? '—'} />
       </section>
+
+      <RequestTimeline
+        httpEntry={http}
+        childEntries={childEntries}
+        onScrollToEntry={onScrollToEntry}
+      />
 
       <div className={styles.detailGrid}>
         <div className={`${styles.httpCol} ${!hasSidePanel ? styles.httpColFull : ''}`}>
@@ -143,6 +203,7 @@ export function DetailBody({ entries }: { entries: EntryDto[] }) {
         )}
       </div>
     </div>
+    </IdeContext.Provider>
   );
 }
 
@@ -272,7 +333,7 @@ function ExceptionRow({ entry }: { entry: EntryDto }) {
   const handled = entry.tags['exception.handled'];
 
   return (
-    <li className={styles.efRow} data-testid="exception-row">
+    <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="exception-row">
       <button
         type="button"
         className={styles.efRowHeader}
@@ -452,6 +513,7 @@ function DbRow({ entry, highlight }: { entry: EntryDto; highlight: boolean }) {
 
   return (
     <li
+      id={`entry-${entry.id}`}
       className={`${styles.efRow} ${highlight ? styles.n1GroupRow : ''}`}
       data-testid="ef-query-row"
     >
@@ -514,6 +576,7 @@ function EfParameters({ parameters }: { parameters: DbContent['parameters'] }) {
 }
 
 function EfStack({ stack }: { stack: EfStackFrame[] }) {
+  const ide = useIdeContext();
   if (!stack || stack.length === 0) {
     return (
       <div>
@@ -526,18 +589,29 @@ function EfStack({ stack }: { stack: EfStackFrame[] }) {
     <div>
       <div className={styles.metaLabel}>Stack</div>
       <ol className={styles.efStack}>
-        {stack.map((f, i) => (
-          <li key={i} className={styles.efStackFrame}>
-            <span className={styles.efStackMethod}>{f.method}</span>
-            {f.file ? (
-              <span className={styles.efStackLocation}>
-                {' '}
-                {f.file}
-                {f.line != null ? `:${f.line}` : ''}
-              </span>
-            ) : null}
-          </li>
-        ))}
+        {stack.map((f, i) => {
+          const link = f.file ? ideUrl(ide, f.file, f.line) : null;
+          return (
+            <li key={i} className={styles.efStackFrame}>
+              <span className={styles.efStackMethod}>{f.method}</span>
+              {f.file ? (
+                link ? (
+                  <a
+                    href={link}
+                    className={styles.efStackLocation}
+                    data-testid="stack-frame-link"
+                  >
+                    {' '}{f.file}{f.line != null ? `:${f.line}` : ''}
+                  </a>
+                ) : (
+                  <span className={styles.efStackLocation}>
+                    {' '}{f.file}{f.line != null ? `:${f.line}` : ''}
+                  </span>
+                )
+              ) : null}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -574,7 +648,7 @@ function OutboundHttpRow({ entry }: { entry: EntryDto }) {
   const hasError = !!entry.tags['http.error'];
 
   return (
-    <li className={styles.efRow} data-testid="http-out-row">
+    <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="http-out-row">
       <button
         type="button"
         className={styles.efRowHeader}
@@ -624,6 +698,13 @@ function OutboundHttpRow({ entry }: { entry: EntryDto }) {
           {content?.responseBody ? (
             <BodySection title="Response body" body={content.responseBody} />
           ) : null}
+          <a
+            href={`#/http-clients/${encodeURIComponent(entry.id)}`}
+            className={styles.jobViewLink}
+            data-testid="http-out-view-link"
+          >
+            View full details →
+          </a>
         </div>
       ) : null}
     </li>
@@ -673,7 +754,7 @@ function CacheRow({ entry }: { entry: EntryDto }) {
   const sourceLabel = system === 'memory' ? 'MEM' : 'DIST';
 
   return (
-    <li className={styles.efRow} data-testid="cache-row">
+    <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="cache-row">
       <button
         type="button"
         className={styles.efRowHeader}
@@ -832,7 +913,7 @@ function LogRow({ entry }: { entry: EntryDto }) {
   const level = content?.level ?? '—';
 
   return (
-    <li className={styles.efRow} data-testid="log-row">
+    <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="log-row">
       <button
         type="button"
         className={styles.efRowHeader}
@@ -929,13 +1010,14 @@ function DumpSection({ entries }: { entries: EntryDto[] }) {
 
 function DumpRow({ entry }: { entry: EntryDto }) {
   const [open, setOpen] = useState(false);
+  const ide = useIdeContext();
   const content = entry.content as DumpEntryContent;
   const label = content?.label;
   const fileName = callerBasename(content?.callerFile ?? '');
-  const pretty = tryPrettyJson(content?.json);
+  const sourceLink = content?.callerFile ? ideUrl(ide, content.callerFile, content.callerLine) : null;
 
   return (
-    <li className={styles.efRow} data-testid="dump-row">
+    <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="dump-row">
       <button
         type="button"
         className={styles.efRowHeader}
@@ -959,18 +1041,25 @@ function DumpRow({ entry }: { entry: EntryDto }) {
         )}
         <span className={styles.efMeta}>
           <span className={styles.logCategory}>{content?.valueType ?? ''}</span>
-          <span className={styles.dumpCallerLocation}>
-            {fileName}:{content?.callerLine}
-          </span>
+          {sourceLink ? (
+            <a
+              href={sourceLink}
+              className={styles.dumpCallerLocation}
+              data-testid="dump-caller-link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {fileName}:{content?.callerLine}
+            </a>
+          ) : (
+            <span className={styles.dumpCallerLocation}>
+              {fileName}:{content?.callerLine}
+            </span>
+          )}
         </span>
       </button>
       {open ? (
         <div className={styles.efRowBody} data-testid="dump-row-body">
-          {pretty ? (
-            <TokenizedCode tokens={tokenizeJson(pretty)} />
-          ) : (
-            <pre className={styles.code}>{content?.json}</pre>
-          )}
+          <JsonTree json={content?.json ?? ''} />
           {content?.jsonTruncated ? (
             <div className={styles.dumpTruncationMarker} data-testid="dump-truncation-marker">
               JSON truncated
@@ -1030,7 +1119,7 @@ function JobEnqueueRow({ entry }: { entry: EntryDto }) {
   const typeName = shortTypeName(content?.jobType);
 
   return (
-    <li className={styles.efRow} data-testid="job-enqueue-row">
+    <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="job-enqueue-row">
       <button
         type="button"
         className={styles.efRowHeader}
@@ -1116,7 +1205,7 @@ function JobExecutionRow({ entry }: { entry: EntryDto }) {
   const succeeded = content?.state === 'Succeeded';
 
   return (
-    <li className={styles.efRow} data-testid="job-execution-row">
+    <li id={`entry-${entry.id}`} className={styles.efRow} data-testid="job-execution-row">
       <button
         type="button"
         className={styles.efRowHeader}

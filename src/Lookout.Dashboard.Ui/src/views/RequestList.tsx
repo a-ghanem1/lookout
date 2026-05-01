@@ -3,8 +3,28 @@ import { listEntries } from '../api/client';
 import type { EntryDto, HttpEntryContent } from '../api/types';
 import { useFetch } from '../api/useFetch';
 import { MethodBadge, StatusBadge } from '../components/Badge';
+import { ActiveTagsBar } from '../components/Tags/TagChip';
+import { useTagFilter } from '../hooks/useTagFilter';
 import { formatDuration, formatTimestamp } from '../format';
 import styles from './RequestList.module.css';
+
+const NOISE_KEY = 'lookout:show-noise';
+
+function readShowNoise(): boolean {
+  try { return localStorage.getItem(NOISE_KEY) === 'true'; } catch { return false; }
+}
+
+function isNoise(entry: EntryDto): boolean {
+  const content = entry.content as HttpEntryContent | undefined;
+  const status = content?.statusCode ?? 0;
+  const duration = entry.durationMs ?? 0;
+  const dbCount = Number.parseInt(entry.tags['db.count'] ?? '0', 10);
+  const logCount = Number.parseInt(entry.tags['log.count'] ?? '0', 10);
+  const cacheCount = Number.parseInt(entry.tags['cache.count'] ?? '0', 10);
+  const httpOutCount = Number.parseInt(entry.tags['http.out.count'] ?? '0', 10);
+  const hasException = entry.tags['exception'] === 'true';
+  return status === 404 && duration < 1 && dbCount === 0 && logCount === 0 && cacheCount === 0 && httpOutCount === 0 && !hasException;
+}
 
 interface Filters {
   method: string;
@@ -15,12 +35,14 @@ interface Filters {
 const EMPTY: Filters = { method: '', status: '', path: '' };
 
 export function RequestList() {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [focused, setFocused] = useState(false);
+  const [showNoise, setShowNoise] = useState(readShowNoise);
 
   const key = useMemo(
-    () => JSON.stringify({ t: 'http', ...filters }),
-    [filters],
+    () => JSON.stringify({ t: 'http', ...filters, tags: activeTags }),
+    [filters, activeTags],
   );
 
   const state = useFetch(
@@ -32,12 +54,33 @@ export function RequestList() {
           method: filters.method || undefined,
           status: filters.status || undefined,
           path: filters.path || undefined,
+          tags: activeTags.length > 0 ? activeTags : undefined,
           limit: 100,
         },
         signal,
       ),
     { poll: 2000, idle: !focused },
   );
+
+  const allEntries = state.data?.entries ?? [];
+
+  const entries = useMemo(
+    () => (showNoise ? allEntries : allEntries.filter((e) => !isNoise(e))),
+    [allEntries, showNoise],
+  );
+
+  const hideUser = entries.every((e) => {
+    const c = e.content as HttpEntryContent | undefined;
+    return !c?.user && !e.tags['http.user'];
+  });
+
+  function toggleNoise() {
+    setShowNoise((v) => {
+      const next = !v;
+      try { localStorage.setItem(NOISE_KEY, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   return (
     <div className={styles.root} data-testid="request-list">
@@ -83,7 +126,18 @@ export function RequestList() {
             onBlur={() => setFocused(false)}
           />
         </label>
+        <button
+          type="button"
+          className={`${styles.noiseToggle} ${showNoise ? styles.noiseToggleActive : ''}`}
+          onClick={toggleNoise}
+          aria-pressed={showNoise}
+          data-testid="show-noise-toggle"
+        >
+          {showNoise ? 'Hide noise' : 'Show noise'}
+        </button>
       </section>
+
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
 
       {state.error ? (
         <div className={styles.error} role="alert">
@@ -91,12 +145,18 @@ export function RequestList() {
         </div>
       ) : null}
 
-      <RequestTable entries={state.data?.entries ?? []} loading={state.loading} />
+      {allEntries.length > 0 && (
+        <div className={styles.summary} data-testid="request-summary">
+          Showing {entries.length} of {allEntries.length} requests
+        </div>
+      )}
+
+      <RequestTable entries={entries} loading={state.loading} hideUser={hideUser} />
     </div>
   );
 }
 
-function RequestTable({ entries, loading }: { entries: EntryDto[]; loading: boolean }) {
+function RequestTable({ entries, loading, hideUser }: { entries: EntryDto[]; loading: boolean; hideUser: boolean }) {
   if (!loading && entries.length === 0) {
     return (
       <div className={styles.tableWrap}>
@@ -120,13 +180,13 @@ function RequestTable({ entries, loading }: { entries: EntryDto[]; loading: bool
             <th className={styles.th}>Path</th>
             <th className={styles.th}>Status</th>
             <th className={styles.th}>Duration</th>
-            <th className={styles.th}>User</th>
-            <th className={styles.th}>DB</th>
+            {!hideUser && <th className={styles.th}>User</th>}
+            <th className={styles.th}>Signals</th>
           </tr>
         </thead>
         <tbody>
           {entries.map((entry) => (
-            <RequestRow key={entry.id} entry={entry} />
+            <RequestRow key={entry.id} entry={entry} hideUser={hideUser} />
           ))}
         </tbody>
       </table>
@@ -134,7 +194,7 @@ function RequestTable({ entries, loading }: { entries: EntryDto[]; loading: bool
   );
 }
 
-function RequestRow({ entry }: { entry: EntryDto }) {
+function RequestRow({ entry, hideUser }: { entry: EntryDto; hideUser: boolean }) {
   const content = entry.content as HttpEntryContent | undefined;
   const method = entry.tags['http.method'] ?? content?.method ?? '—';
   const path = entry.tags['http.path'] ?? content?.path ?? '—';
@@ -184,7 +244,7 @@ function RequestRow({ entry }: { entry: EntryDto }) {
         {Number.isFinite(status) ? <StatusBadge status={status} /> : '—'}
       </td>
       <td className={`${styles.td} ${styles.duration}`}>{formatDuration(entry.durationMs)}</td>
-      <td className={`${styles.td} ${styles.mono}`}>{user || '—'}</td>
+      {!hideUser && <td className={`${styles.td} ${styles.mono}`}>{user || '—'}</td>}
       <td className={styles.td}>
         <div className={styles.dbCell}>
           {dbCount !== null && dbCount > 0 ? (

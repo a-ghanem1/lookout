@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using Lookout.AspNetCore.Api;
@@ -28,8 +29,13 @@ public static class LookoutEndpointRouteBuilderExtensions
         group.MapGet("/api/entries", ListEntriesAsync);
         group.MapGet("/api/entries/counts", GetEntryCountsAsync);
         group.MapGet("/api/entries/cache/summary", GetCacheSummaryAsync);
+        group.MapGet("/api/entries/logs/histogram", GetLogHistogramAsync);
+        group.MapGet("/api/entries/cache/by-key", GetCacheByKeyAsync);
         group.MapGet("/api/entries/{id:guid}", GetEntryAsync);
         group.MapGet("/api/requests/{id}", GetRequestEntriesAsync);
+        group.MapGet("/api/search", SearchEntriesAsync);
+        group.MapGet("/api/host", GetHostInfoAsync);
+        group.MapDelete("/api/entries", DeleteAllEntriesAsync);
 
         // Dashboard asset handler. The `/api/` routes above win by template specificity;
         // anything else under /lookout falls through to the embedded Vite bundle, with
@@ -196,6 +202,18 @@ public static class LookoutEndpointRouteBuilderExtensions
             else typeIn = parts;
         }
 
+        // Parse multi-valued tag filters: ?tag=key:value&tag=key2:value2
+        var tagValues = ctx.Request.Query["tag"];
+        List<(string Key, string Value)>? tags = null;
+        foreach (var tv in tagValues)
+        {
+            if (string.IsNullOrEmpty(tv)) continue;
+            var colon = tv.IndexOf(':');
+            if (colon < 1) continue;
+            tags ??= [];
+            tags.Add((tv[..colon], tv[(colon + 1)..]));
+        }
+
         var query = new LookoutQuery(
             Type: singleType,
             TypeIn: typeIn,
@@ -212,7 +230,8 @@ public static class LookoutEndpointRouteBuilderExtensions
             UrlHost: host,
             ErrorsOnly: errors_only,
             MinLevel: min_level,
-            Handled: handled);
+            Handled: handled,
+            Tags: tags);
 
         var entries = await storage.QueryAsync(query, ctx.RequestAborted).ConfigureAwait(false);
         var dtos = entries.Select(EntryDto.From).ToArray();
@@ -244,6 +263,106 @@ public static class LookoutEndpointRouteBuilderExtensions
 
         var dtos = entries.Select(EntryDto.From).ToArray();
         return Json(dtos);
+    }
+
+    private static async Task<IResult> SearchEntriesAsync(
+        HttpContext ctx,
+        SqliteLookoutStorage storage,
+        string? q = null,
+        int? limit = null)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return Json(Array.Empty<SearchResultDto>());
+
+        var effectiveLimit = Math.Clamp(limit ?? 50, 1, 100);
+        ctx.Response.Headers["Cache-Control"] = "no-store";
+
+        IReadOnlyList<SearchResult> results;
+        try
+        {
+            results = await storage.SearchWithSnippetAsync(q, effectiveLimit, ctx.RequestAborted)
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            results = Array.Empty<SearchResult>();
+        }
+
+        var dtos = results.Select(r => new SearchResultDto(
+            r.Id, r.Type, r.Timestamp.ToUnixTimeMilliseconds(), r.RequestId, r.Snippet)).ToArray();
+        return Json(dtos);
+    }
+
+    private static async Task<IResult> GetLogHistogramAsync(
+        HttpContext ctx,
+        SqliteLookoutStorage storage,
+        int? bucket_count = null)
+    {
+        var effectiveBuckets = Math.Clamp(bucket_count ?? 12, 2, 60);
+        ctx.Response.Headers["Cache-Control"] = "no-store";
+
+        var buckets = await storage.GetLogHistogramAsync(effectiveBuckets, ctx.RequestAborted)
+            .ConfigureAwait(false);
+
+        var dtos = buckets.Select(b => new
+        {
+            from = b.From,
+            to = b.To,
+            byLevel = new
+            {
+                trace = b.Trace,
+                debug = b.Debug,
+                information = b.Information,
+                warning = b.Warning,
+                error = b.Error,
+                critical = b.Critical,
+            },
+        }).ToArray();
+
+        return Json(dtos);
+    }
+
+    private static async Task<IResult> GetCacheByKeyAsync(
+        HttpContext ctx,
+        SqliteLookoutStorage storage,
+        int? limit = null)
+    {
+        var effectiveLimit = Math.Clamp(limit ?? 10, 1, 50);
+        ctx.Response.Headers["Cache-Control"] = "no-store";
+
+        var stats = await storage.GetCacheByKeyAsync(effectiveLimit, ctx.RequestAborted)
+            .ConfigureAwait(false);
+
+        return Json(stats.Select(s => new { key = s.Key, hits = s.Hits, misses = s.Misses, sets = s.Sets, hitRatio = s.HitRatio }).ToArray());
+    }
+
+    private static IResult GetHostInfoAsync()
+    {
+        var os = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "windows"
+            : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "macos"
+            : "linux";
+        return Json(new { os });
+    }
+
+    private static async Task<IResult> DeleteAllEntriesAsync(
+        HttpContext ctx,
+        SqliteLookoutStorage storage)
+    {
+        if (!IsSameOrigin(ctx))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+        var deleted = await storage.DeleteAllAsync(ctx.RequestAborted).ConfigureAwait(false);
+        return Json(new { deleted });
+    }
+
+    private static bool IsSameOrigin(HttpContext ctx)
+    {
+        var origin = ctx.Request.Headers.Origin.FirstOrDefault();
+        if (string.IsNullOrEmpty(origin)) return false;
+        var host = ctx.Request.Host.ToString();
+        if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri))
+            return string.Equals(originUri.Authority, host, StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     private static IResult Json<T>(T value)

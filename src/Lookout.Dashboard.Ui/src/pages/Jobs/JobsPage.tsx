@@ -4,6 +4,8 @@ import { listEntries } from '../../api/client';
 import type { EntryDto } from '../../api/types';
 import { EntryListShell } from '../../components/EntryList/EntryListShell';
 import { EntryRow } from '../../components/EntryList/EntryRow';
+import { ActiveTagsBar } from '../../components/Tags/TagChip';
+import { useTagFilter } from '../../hooks/useTagFilter';
 import { formatDuration, formatRelative } from '../../format';
 import styles from './JobsPage.module.css';
 
@@ -39,6 +41,7 @@ function statusChipClass(state: string): string {
 }
 
 export function JobsPage() {
+  const { activeTags, removeTag, clear: clearTags } = useTagFilter();
   const [kindFilter, setKindFilter] = useState<KindFilter>('executions');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [queueFilter, setQueueFilter] = useState<string>('all');
@@ -59,9 +62,10 @@ export function JobsPage() {
     setLoading(true);
     setError(undefined);
 
+    const tags = activeTags.length > 0 ? activeTags : undefined;
     Promise.all([
-      listEntries({ type: 'job-enqueue', limit: 200 }, controller.signal),
-      listEntries({ type: 'job-execution', limit: 200 }, controller.signal),
+      listEntries({ type: 'job-enqueue', tags, limit: 200 }, controller.signal),
+      listEntries({ type: 'job-execution', tags, limit: 200 }, controller.signal),
     ])
       .then(([enqResp, execResp]) => {
         const merged = [...enqResp.entries, ...execResp.entries]
@@ -77,7 +81,7 @@ export function JobsPage() {
       });
 
     return () => controller.abort();
-  }, [retryCount]);
+  }, [activeTags, retryCount]);
 
   function handleKindChange(k: KindFilter) {
     setKindFilter(k);
@@ -168,6 +172,7 @@ export function JobsPage() {
         onChange={(e) => setJobTypeSearch(e.target.value)}
         aria-label="Search job type"
       />
+      <ActiveTagsBar tags={activeTags} onRemove={removeTag} onClear={clearTags} />
     </div>
   );
 

@@ -219,3 +219,69 @@
   font-size: var(--text-xs-size);
   color: var(--color-fg-muted);
 }
+
+.keyBreakdownWrap {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  overflow-x: auto;
+}
+
+.keyBreakdownTitle {
+  font-size: var(--text-2xs-size);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-fg-muted);
+  margin-bottom: var(--space-2);
+}
+
+.keyBreakdownTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs-size);
+}
+
+.keyBreakdownTh {
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-fg-muted);
+  font-weight: var(--font-weight-medium);
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+.keyBreakdownRow:hover {
+  background: var(--color-bg-inset);
+}
+
+.keyBreakdownKey {
+  font-family: var(--font-mono);
+  padding: var(--space-1) var(--space-2);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keyBreakdownCell {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-fg-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.ratioBarWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 80px;
+}
+
+.ratioBar {
+  height: 6px;
+  background: var(--color-success-fg);
+  border-radius: var(--radius-sm);
+  opacity: 0.7;
+  flex-shrink: 0;
+}

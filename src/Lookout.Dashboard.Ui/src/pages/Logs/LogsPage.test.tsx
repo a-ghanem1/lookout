@@ -48,7 +48,11 @@ describe('LogsPage', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
-        capturedUrls.push(typeof input === 'string' ? input : input.toString());
+        const url = typeof input === 'string' ? input : input.toString();
+        capturedUrls.push(url);
+        if (url.includes('histogram')) {
+          return new Response(JSON.stringify([]), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
         return new Response(
           JSON.stringify(
             makeResponse([
@@ -128,9 +132,7 @@ describe('LogsPage', () => {
   it('sends type=log in every fetch', async () => {
     render(<LogsPage />);
 
-    await waitFor(() => expect(capturedUrls.length).toBeGreaterThan(0));
-
-    expect(capturedUrls[0]).toContain('type=log');
+    await waitFor(() => expect(capturedUrls.some((u) => u.includes('type=log'))).toBe(true));
   });
 
   it('filters by Warn+ chip — hides Information entries', async () => {
