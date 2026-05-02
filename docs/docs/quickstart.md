@@ -25,6 +25,13 @@ dotnet new webapi -n MyApp && cd MyApp
 dotnet add package Lookout.AspNetCore
 ```
 
+If your project uses **EF Core**, also install the EF integration package in the project that
+contains your `DbContext`:
+
+```bash
+dotnet add package Lookout.EntityFrameworkCore
+```
+
 For Hangfire job capture (optional):
 
 ```bash
@@ -33,10 +40,10 @@ dotnet add package Lookout.Hangfire
 
 ## 2. Wire up
 
-Add three lines to `Program.cs`:
+### Program.cs — three lines
 
 ```csharp
-// 1. Register services — call BEFORE AddDbContext
+// 1. Register services — call AFTER AddMemoryCache / AddDistributedMemoryCache
 builder.Services.AddLookout();
 
 // 2. Add middleware — call BEFORE UseRouting
@@ -47,9 +54,42 @@ app.MapLookout();
 ```
 
 :::tip Order matters
-`AddLookout()` must come **before** `AddDbContext()` so the EF interceptor registers in the right position.
+`AddLookout()` must come **after** `AddMemoryCache()` / `AddDistributedMemoryCache()` (if used)
+so the cache decorator can wrap the registered cache. If no cache is registered yet, cache capture
+is silently skipped.
 
-`UseLookout()` should come **before** `UseRouting()` and before any endpoint middleware so it captures the full request lifecycle.
+`UseLookout()` must come **before** `UseRouting()` and any endpoint middleware so it captures the
+full request lifecycle.
+:::
+
+### EF Core — one extra step per DbContext
+
+EF Core query capture is not automatic. After installing `Lookout.EntityFrameworkCore`:
+
+**Step 1** — call `AddEntityFrameworkCore()` alongside `AddLookout()`:
+
+```csharp
+builder.Services.AddLookout();
+builder.Services.AddEntityFrameworkCore(); // from Lookout.EntityFrameworkCore namespace
+```
+
+**Step 2** — add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument:
+
+```csharp
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
+    options.UseSqlServer(connectionString)
+           .UseLookout(sp);   // <-- adds the Lookout DbCommandInterceptor
+});
+```
+
+The `sp` overload of `AddDbContext` gives you the service provider so Lookout can resolve its
+singleton interceptor. If you use `AddDbContextFactory`, the same `.UseLookout(sp)` call applies
+inside the factory delegate.
+
+:::info Multiple DbContexts
+Call `.UseLookout(sp)` in every `AddDbContext` call you want to instrument. Each context is
+independent.
 :::
 
 ## 3. Run
@@ -117,3 +157,4 @@ The banner groups all identical SQL shapes, shows a count, and links the stack f
 - [Configuration](./configuration) — body capture, retention window, redaction
 - [Extensibility](./extensibility) — record custom events with `ILookoutRecorder` or `Lookout.Dump()`
 - [Security model](./security) — understand the dev-only default and how to extend it
+- [Troubleshooting](./troubleshooting) — ABP, Serilog, Npgsql, and other framework-specific notes

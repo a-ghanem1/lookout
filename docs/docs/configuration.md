@@ -76,6 +76,16 @@ options.Ef.N1IgnorePatterns.Add(new Regex("SELECT.*__EFMigrationsHistory"));
 
 ## Cache (`options.Cache`)
 
+:::tip Registration order
+`AddLookout()` decorates `IMemoryCache` and `IDistributedCache` by wrapping whichever
+implementations are already registered at call time. **Call `AddMemoryCache()` /
+`AddDistributedMemoryCache()` (or equivalent) before `AddLookout()`**, otherwise the decorator
+finds nothing to wrap and cache capture is silently skipped.
+
+If you use a framework that registers caches inside modules (ABP, Orchard Core, etc.), move
+`AddLookout()` to after those module registrations complete. See [Troubleshooting](./troubleshooting#cache-hitmiss-not-appearing) for details.
+:::
+
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `CaptureMemoryCache` | `bool` | `true` | Captures `IMemoryCache` get/set/remove operations. |

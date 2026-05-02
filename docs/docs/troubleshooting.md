@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: Troubleshooting
-description: Solutions to the five most common Lookout setup issues.
+description: Solutions to common Lookout setup issues, including framework-specific gotchas.
 ---
 
 # Troubleshooting
@@ -41,21 +41,161 @@ $env:ASPNETCORE_ENVIRONMENT      # PowerShell
 
 **Symptom:** The dashboard loads, HTTP entries appear, but the `db` badge is always 0.
 
-**Cause (most common):** `AddLookout()` was called *after* `AddDbContext()`. The interceptor must register before the DbContext is built.
+**Cause:** EF Core capture requires the separate `Lookout.EntityFrameworkCore` package and
+explicit wiring. It is **not** automatic from `Lookout.AspNetCore` alone.
 
-**Fix:**
+**Fix — three steps:**
 
-```csharp
-// CORRECT — Lookout before DbContext
-builder.Services.AddLookout();
-builder.Services.AddDbContext<AppDbContext>(...);
+1. Install the package in the project that contains your `DbContext`:
+
+```bash
+dotnet add package Lookout.EntityFrameworkCore
 ```
 
-If you use `AddDbContextFactory` or manually create `DbContextOptions`, make sure you call `AddLookout()` first and that the interceptor is registered in the options builder. Lookout registers its interceptor via a `DbContextOptionsExtension` — it needs to observe the `AddDbContext` call.
+2. Call `AddEntityFrameworkCore()` next to `AddLookout()` in `Program.cs`:
+
+```csharp
+builder.Services.AddLookout();
+builder.Services.AddEntityFrameworkCore(); // Lookout.EntityFrameworkCore namespace
+```
+
+3. Add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument:
+
+```csharp
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
+    options.UseSqlServer(connectionString)
+           .UseLookout(sp);
+});
+```
 
 **Also check:**
 - You are using EF Core (not raw ADO.NET or Dapper only). Raw SQL via ADO.NET appears in the `sql` section, not `ef`.
-- The database provider is supported (SQL Server, SQLite, PostgreSQL via Npgsql — all use standard `DbCommandInterceptor`).
+- The database provider is supported. `DbCommandInterceptor` works with any EF Core provider (SQL Server, PostgreSQL/Npgsql, SQLite, etc.).
+
+---
+
+## "PostgreSQL / Npgsql raw queries not appearing"
+
+**Symptom:** You use Npgsql directly (raw `NpgsqlCommand`, Dapper) without EF Core, and no `sql`
+entries appear.
+
+**Cause:** The built-in ADO.NET diagnostic subscriber only listens to
+`SqlClientDiagnosticListener` (SQL Server). Npgsql emits events via its own `ActivitySource`
+(name `"Npgsql"`), which a separate subscriber handles.
+
+**Fix:** No additional package is required. `Lookout.AspNetCore` includes a Npgsql
+`ActivitySource` subscriber that activates automatically **unless** `Lookout.EntityFrameworkCore`
+is installed (in which case the EF interceptor takes over and the ActivitySource subscriber is
+suppressed to avoid double-capture).
+
+If you install `Lookout.EntityFrameworkCore` for EF queries **and** also use raw `NpgsqlCommand`
+in the same app, the raw Npgsql queries will not appear in Lookout — this is a known v1
+limitation. Migrate the raw queries to EF Core, or open an issue to request mixed-mode capture.
+
+---
+
+## "Cache hit/miss not appearing" {#cache-hitmiss-not-appearing}
+
+**Symptom:** The dashboard shows HTTP requests but the `cache` badge is always 0.
+
+**Cause:** `AddLookout()` decorates `IMemoryCache` and `IDistributedCache` by wrapping whatever
+is already registered at call time. If `AddLookout()` runs before those registrations exist, the
+decorator silently no-ops.
+
+**Fix:** Call `AddLookout()` **after** `AddMemoryCache()` / `AddDistributedMemoryCache()`:
+
+```csharp
+builder.Services.AddMemoryCache();           // must come first
+builder.Services.AddDistributedMemoryCache(); // or Redis, etc.
+builder.Services.AddLookout();               // wraps the cache registrations above
+```
+
+**Framework-specific note (ABP, Orchard Core, etc.):**
+
+When a framework registers its services inside modules that run during `AddApplicationAsync()` or
+equivalent, the cache registrations happen after your top-level `AddLookout()` call. Move
+`AddLookout()` to after the framework initialisation:
+
+```csharp
+await builder.AddApplicationAsync<YourModule>(); // ABP: modules register caches here
+builder.Services.AddLookout();                   // now wraps the module-registered caches
+```
+
+---
+
+## "Logs not appearing when using Serilog"
+
+**Symptom:** Log entries are written to the Serilog output (console, file, Seq) but never appear
+in the Lookout dashboard.
+
+**Cause:** `UseSerilog()` replaces the entire `ILoggerFactory` with Serilog's own implementation.
+Lookout registers `LookoutLoggerProvider` as an `ILoggerProvider` in DI, but Serilog's
+`ILoggerFactory` does not resolve providers from DI — it only routes through its own sink
+pipeline. As a result, `LookoutLoggerProvider` never receives log events.
+
+**Fix:** Add `.ReadFrom.Services(services)` to your Serilog configuration:
+
+```csharp
+.UseSerilog((context, services, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)  // forwards events to all ILoggerProvider sinks in DI
+        // ... other sinks
+})
+```
+
+`.ReadFrom.Services(services)` causes Serilog to forward events to all `ILoggerProvider`
+instances registered in DI, including `LookoutLoggerProvider`. This is the standard way to bridge
+Serilog with the Microsoft logging ecosystem and requires no extra package.
+
+---
+
+## "Using ABP Framework (module-based DI)"
+
+ABP registers its services, DbContexts, caches, and HttpClients inside ABP module
+`ConfigureServices` methods, which run during `AddApplicationAsync()`. This affects Lookout's
+registration in two ways:
+
+### Cache capture — move AddLookout() after AddApplicationAsync()
+
+```csharp
+// Program.cs
+await builder.AddApplicationAsync<YourHostModule>(); // ABP modules run here
+builder.Services.AddLookout(options =>               // now sees the registered caches
+{
+    options.CaptureRequestBody = true;
+});
+```
+
+### EF Core capture — wire the interceptor in the EF module
+
+Install `Lookout.EntityFrameworkCore` in the project containing your `DbContext` (e.g.
+`YourApp.EntityFrameworkCore`), then wire the interceptor via `Configure<AbpDbContextOptions>`
+inside your EF module:
+
+```csharp
+// YourApp.EntityFrameworkCore / YourAppEntityFrameworkCoreModule.cs
+public override void ConfigureServices(ServiceConfigurationContext context)
+{
+    context.Services.AddEntityFrameworkCore(); // registers the Lookout interceptor singleton
+
+    Configure<AbpDbContextOptions>(options =>
+    {
+        options.PreConfigure<YourAppDbContext>((sp, builder) =>
+            builder.UseLookout(sp));            // wires the interceptor into this DbContext
+
+        options.UseNpgsql();                   // or UseSqlServer(), etc.
+    });
+}
+```
+
+### HttpClient capture
+
+Outbound `HttpClient` capture works automatically. ABP registers typed/named clients via
+`IHttpClientFactory`, and Lookout's `ConfigureAll<HttpClientFactoryOptions>` hooks into every
+client regardless of registration order.
 
 ---
 

@@ -1,3 +1,4 @@
+using Lookout.Core.Capture;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -14,6 +15,9 @@ public static class LookoutEntityFrameworkCoreExtensions
     public static IServiceCollection AddEntityFrameworkCore(this IServiceCollection services)
     {
         services.TryAddSingleton<LookoutDbCommandInterceptor>();
+        // Signal to provider-level subscribers (Npgsql ActivitySource) that the richer EF
+        // interceptor is active so they skip double-capturing the same queries.
+        EfCommandRegistry.EfInterceptorRegistered = true;
         return services;
     }
 
