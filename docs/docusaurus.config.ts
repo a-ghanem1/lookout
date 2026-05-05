@@ -123,7 +123,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Abdelrahman Ghanem. MIT License.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Abdelrahman Ghanem. Apache 2.0 License.`,
     },
     prism: {
       theme: prismThemes.github,

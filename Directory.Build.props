@@ -11,7 +11,7 @@
     <Version>1.0.0-preview.1</Version>
     <Authors>Abdelrahman Ghanem</Authors>
     <Copyright>Copyright © 2026 Abdelrahman Ghanem</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <RepositoryUrl>https://github.com/a-ghanem1/Lookout</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

@@ -8,7 +8,7 @@
   [![NuGet](https://img.shields.io/nuget/v/Lookout.AspNetCore?label=Lookout.AspNetCore&color=512BD4)](https://www.nuget.org/packages/Lookout.AspNetCore/)
   [![NuGet](https://img.shields.io/nuget/v/Lookout.Hangfire?label=Lookout.Hangfire&color=512BD4)](https://www.nuget.org/packages/Lookout.Hangfire/)
   [![CI](https://github.com/a-ghanem1/Lookout/actions/workflows/ci.yml/badge.svg)](https://github.com/a-ghanem1/Lookout/actions/workflows/ci.yml)
-  [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+  [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
   [![.NET](https://img.shields.io/badge/.NET-8%20%7C%2010-512BD4)](https://dotnet.microsoft.com)
 
   <p>
@@ -176,4 +176,8 @@ Planned community PR targets post-v1: Quartz.NET, MassTransit, Wolverine, gRPC c
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache 2.0 — see [LICENSE](LICENSE).
+
+## Security
+
+Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md). Do not open a public issue.
