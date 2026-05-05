@@ -54,6 +54,15 @@ const config: Config = {
   ],
 
   themeConfig: {
+    image: 'img/social.png',
+    metadata: [
+      { name: 'description', content: 'Zero-config dev-time diagnostics dashboard for ASP.NET Core. Captures HTTP, EF Core (with N+1 detection), outbound HTTP, cache, exceptions, logs, and Hangfire jobs — correlated per request.' },
+      { name: 'keywords', content: 'aspnetcore, dotnet, diagnostics, ef-core, n+1, hangfire, observability, dashboard, lookout' },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:image:width', content: '1280' },
+      { property: 'og:image:height', content: '640' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+    ],
     colorMode: {
       defaultMode: 'light',
       disableSwitch: false,
