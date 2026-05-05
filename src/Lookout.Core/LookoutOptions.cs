@@ -108,15 +108,15 @@ public sealed class LookoutOptions
 
     /// <summary>
     /// When true, HTTP request bodies are buffered and captured (content-type gated,
-    /// size-capped by <see cref="MaxBodyBytes"/>). Default: <c>false</c>.
+    /// size-capped by <see cref="MaxBodyBytes"/>). Default: <c>true</c>.
     /// </summary>
-    public bool CaptureRequestBody { get; set; }
+    public bool CaptureRequestBody { get; set; } = true;
 
     /// <summary>
     /// When true, HTTP response bodies are captured (content-type gated,
-    /// size-capped by <see cref="MaxBodyBytes"/>). Default: <c>false</c>.
+    /// size-capped by <see cref="MaxBodyBytes"/>). Default: <c>true</c>.
     /// </summary>
-    public bool CaptureResponseBody { get; set; }
+    public bool CaptureResponseBody { get; set; } = true;
 
     /// <summary>
     /// Maximum number of bytes captured per request or response body.

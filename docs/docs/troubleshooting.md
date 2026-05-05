@@ -165,7 +165,7 @@ registration in two ways:
 await builder.AddApplicationAsync<YourHostModule>(); // ABP modules run here
 builder.Services.AddLookout(options =>               // now sees the registered caches
 {
-    options.CaptureRequestBody = true;
+    // configure as needed — defaults capture request/response bodies, EF, HTTP, cache, etc.
 });
 ```
 

@@ -72,15 +72,15 @@ public sealed class LookoutOptionsDefaultsTests
     }
 
     [Fact]
-    public void CaptureRequestBody_DefaultsToFalse()
+    public void CaptureRequestBody_DefaultsToTrue()
     {
-        _sut.CaptureRequestBody.Should().BeFalse();
+        _sut.CaptureRequestBody.Should().BeTrue();
     }
 
     [Fact]
-    public void CaptureResponseBody_DefaultsToFalse()
+    public void CaptureResponseBody_DefaultsToTrue()
     {
-        _sut.CaptureResponseBody.Should().BeFalse();
+        _sut.CaptureResponseBody.Should().BeTrue();
     }
 
     [Fact]

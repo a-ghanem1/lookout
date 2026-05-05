@@ -122,8 +122,8 @@ builder.Services.AddLookout(options =>
 {
     options.RetentionWindow        = TimeSpan.FromHours(24); // default
     options.MaxEntries             = 50_000;                 // default
-    options.CaptureRequestBody     = false;                  // opt-in
-    options.CaptureResponseBody    = false;                  // opt-in
+    options.CaptureRequestBody     = true;                   // default
+    options.CaptureResponseBody    = true;                   // default
     options.Ef.N1DetectionMinOccurrences = 3;               // default
 
     // Allow in non-Production environments

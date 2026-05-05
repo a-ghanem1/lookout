@@ -15,11 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemoryCache();
 builder.Services.AddDistributedMemoryCache();
 
-builder.Services.AddLookout(o =>
-{
-    o.CaptureRequestBody = true;
-    o.CaptureResponseBody = true;
-});
+builder.Services.AddLookout();
 builder.Services.AddEntityFrameworkCore();
 
 builder.Services.AddHangfire(cfg => cfg.UseInMemoryStorage());

@@ -208,7 +208,7 @@ public sealed class LookoutRequestMiddlewareTests : IDisposable
     }
 
     [Fact]
-    public async Task DefaultOptions_DoNotCaptureRequestOrResponseBodies()
+    public async Task DefaultOptions_CaptureRequestAndResponseBodies()
     {
         var dbPath = TempDbPath();
         await using var app = BuildApp(dbPath, endpointMap: endpoints =>
@@ -220,6 +220,38 @@ public sealed class LookoutRequestMiddlewareTests : IDisposable
                 return Results.Text(body, "application/json");
             });
         });
+        await app.StartAsync();
+
+        var req = new HttpRequestMessage(HttpMethod.Post, "/echo")
+        {
+            Content = new StringContent("{\"hello\":\"world\"}", System.Text.Encoding.UTF8, "application/json"),
+        };
+        (await app.GetTestClient().SendAsync(req)).IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        var content = DeserializeContent(entry);
+        content.RequestBody.Should().Contain("\"hello\":\"world\"");
+        content.ResponseBody.Should().Contain("\"hello\":\"world\"");
+    }
+
+    [Fact]
+    public async Task ExplicitOptOut_DoesNotCaptureRequestOrResponseBodies()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(
+            dbPath,
+            o => { o.CaptureRequestBody = false; o.CaptureResponseBody = false; },
+            endpointMap: endpoints =>
+            {
+                endpoints.MapPost("/echo", async (HttpContext ctx) =>
+                {
+                    using var reader = new StreamReader(ctx.Request.Body);
+                    var body = await reader.ReadToEndAsync();
+                    return Results.Text(body, "application/json");
+                });
+            });
         await app.StartAsync();
 
         var req = new HttpRequestMessage(HttpMethod.Post, "/echo")

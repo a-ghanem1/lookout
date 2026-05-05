@@ -38,8 +38,8 @@ builder.Services.AddLookout(options =>
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `CaptureRequestBody` | `bool` | `false` | Captures inbound request bodies (content-type gated, size-capped). Opt-in to avoid buffering production traffic. |
-| `CaptureResponseBody` | `bool` | `false` | Captures HTTP response bodies. Same gating as request body. |
+| `CaptureRequestBody` | `bool` | `true` | Captures inbound request bodies (content-type gated, size-capped). Set to `false` to skip buffering. |
+| `CaptureResponseBody` | `bool` | `true` | Captures HTTP response bodies. Same gating as request body. |
 | `MaxBodyBytes` | `int` | `65_536` (64 KiB) | Maximum bytes captured per request or response body. Larger bodies are truncated with a marker. |
 | `SkipPaths` | `HashSet<string>` | `/healthz`, `/health`, `/ready`, `/favicon.ico` | Paths skipped entirely by the HTTP capture middleware. Case-insensitive. `/lookout` is always skipped. |
 | `CapturedContentTypes` | `HashSet<string>` | `application/json`, `application/x-www-form-urlencoded`, `text/*` | Content types eligible for body capture. Supports `text/*` wildcard. |
