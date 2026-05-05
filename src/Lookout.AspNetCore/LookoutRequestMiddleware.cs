@@ -13,7 +13,8 @@ namespace Lookout.AspNetCore;
 
 /// <summary>
 /// Captures a <see cref="LookoutEntry"/> of type <c>http</c> for every request that is not
-/// skipped by <see cref="LookoutOptions.SkipPaths"/> or the dashboard mount prefix.
+/// skipped by <see cref="LookoutOptions.SkipPaths"/>, <see cref="LookoutOptions.SkipStaticAssetExtensions"/>,
+/// or the dashboard mount prefix.
 /// </summary>
 internal sealed class LookoutRequestMiddleware
 {
@@ -146,7 +147,13 @@ internal sealed class LookoutRequestMiddleware
     {
         if (string.IsNullOrEmpty(path)) return false;
         if (IsUnderMountPrefix(path)) return true;
-        return _options.SkipPaths.Contains(path);
+        if (_options.SkipPaths.Contains(path)) return true;
+        if (_options.SkipStaticAssetExtensions.Count > 0)
+        {
+            var ext = Path.GetExtension(path);
+            if (ext.Length > 0 && _options.SkipStaticAssetExtensions.Contains(ext)) return true;
+        }
+        return false;
     }
 
     private bool IsUnderMountPrefix(string path)

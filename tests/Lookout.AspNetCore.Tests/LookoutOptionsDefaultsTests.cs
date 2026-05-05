@@ -104,6 +104,24 @@ public sealed class LookoutOptionsDefaultsTests
     }
 
     [Fact]
+    public void SkipStaticAssetExtensions_DefaultsToCommonAssetExtensions()
+    {
+        _sut.SkipStaticAssetExtensions.Should().BeEquivalentTo(new[]
+        {
+            ".js", ".css", ".map",
+            ".woff", ".woff2", ".ttf", ".otf", ".eot",
+            ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
+        });
+    }
+
+    [Fact]
+    public void SkipStaticAssetExtensions_MatchesCaseInsensitively()
+    {
+        _sut.SkipStaticAssetExtensions.Contains(".JS").Should().BeTrue();
+        _sut.SkipStaticAssetExtensions.Contains(".Woff2").Should().BeTrue();
+    }
+
+    [Fact]
     public void CapturedContentTypes_DefaultsToJsonFormAndTextWildcard()
     {
         _sut.CapturedContentTypes.Should().BeEquivalentTo(

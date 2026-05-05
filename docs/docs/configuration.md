@@ -42,6 +42,7 @@ builder.Services.AddLookout(options =>
 | `CaptureResponseBody` | `bool` | `true` | Captures HTTP response bodies. Same gating as request body. |
 | `MaxBodyBytes` | `int` | `65_536` (64 KiB) | Maximum bytes captured per request or response body. Larger bodies are truncated with a marker. |
 | `SkipPaths` | `HashSet<string>` | `/healthz`, `/health`, `/ready`, `/favicon.ico` | Paths skipped entirely by the HTTP capture middleware. Case-insensitive. `/lookout` is always skipped. |
+| `SkipStaticAssetExtensions` | `HashSet<string>` | `.js`, `.css`, `.map`, `.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`, `.svg`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.ico` | File extensions skipped entirely by the HTTP capture middleware. Prevents `UseStaticFiles()` traffic from drowning real API requests. Clear the set to capture asset requests. |
 | `CapturedContentTypes` | `HashSet<string>` | `application/json`, `application/x-www-form-urlencoded`, `text/*` | Content types eligible for body capture. Supports `text/*` wildcard. |
 
 ---

@@ -49,7 +49,7 @@ builder.Services.AddLookout();
 // 2. Add middleware — call BEFORE UseRouting
 app.UseLookout();
 
-// 3. Mount the dashboard at /lookout
+// 3. Mount the dashboard as a route on your app at /lookout (no separate process)
 app.MapLookout();
 ```
 
@@ -98,7 +98,7 @@ independent.
 dotnet run
 ```
 
-Open the Lookout dashboard in your browser. The port is printed by `dotnet run`:
+The dashboard lives at the `/lookout` route on **your app's** host and port — there is no separate process. The port is printed by `dotnet run`:
 
 ```
 Now listening on: https://localhost:5001

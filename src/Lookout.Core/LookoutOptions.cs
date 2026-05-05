@@ -134,6 +134,19 @@ public sealed class LookoutOptions
     };
 
     /// <summary>
+    /// File extensions (including the leading <c>.</c>) whose requests are skipped entirely
+    /// by HTTP capture. Prevents static-asset traffic served via <c>UseStaticFiles()</c> from
+    /// drowning out real API requests in the dashboard. Comparison is case-insensitive.
+    /// Set to an empty collection to capture static-asset requests.
+    /// </summary>
+    public HashSet<string> SkipStaticAssetExtensions { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".js", ".css", ".map",
+        ".woff", ".woff2", ".ttf", ".otf", ".eot",
+        ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
+    };
+
+    /// <summary>
     /// Content types eligible for body capture. Matches exact strings and a single
     /// <c>text/*</c> wildcard. Comparison is case-insensitive.
     /// </summary>

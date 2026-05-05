@@ -96,6 +96,53 @@ public sealed class LookoutRequestMiddlewareTests : IDisposable
     }
 
     [Fact]
+    public async Task DefaultStaticAssetExtensions_AreNotCaptured()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(dbPath, endpointMap: endpoints =>
+        {
+            endpoints.MapGet("/assets/app.js", () => Results.Text("/* */", "application/javascript"));
+            endpoints.MapGet("/assets/site.css", () => Results.Text("body{}", "text/css"));
+            endpoints.MapGet("/assets/logo.png", () => Results.File(new byte[] { 0x89, 0x50 }, "image/png"));
+            endpoints.MapGet("/assets/font.woff2", () => Results.File(new byte[] { 0x00 }, "font/woff2"));
+        });
+        await app.StartAsync();
+
+        var client = app.GetTestClient();
+        (await client.GetAsync("/assets/app.js")).IsSuccessStatusCode.Should().BeTrue();
+        (await client.GetAsync("/assets/site.css")).IsSuccessStatusCode.Should().BeTrue();
+        (await client.GetAsync("/assets/logo.png")).IsSuccessStatusCode.Should().BeTrue();
+        (await client.GetAsync("/assets/font.woff2")).IsSuccessStatusCode.Should().BeTrue();
+
+        await Task.Delay(300);
+        var rows = await ReadAllAsync(dbPath);
+        await app.StopAsync();
+
+        rows.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClearingSkipStaticAssetExtensions_CapturesAssetRequests()
+    {
+        var dbPath = TempDbPath();
+        await using var app = BuildApp(
+            dbPath,
+            o => o.SkipStaticAssetExtensions.Clear(),
+            endpointMap: endpoints =>
+            {
+                endpoints.MapGet("/assets/app.js", () => Results.Text("/* */", "application/javascript"));
+            });
+        await app.StartAsync();
+
+        (await app.GetTestClient().GetAsync("/assets/app.js")).IsSuccessStatusCode.Should().BeTrue();
+
+        var entry = (await PollForEntriesAsync(dbPath, expected: 1)).Single();
+        await app.StopAsync();
+
+        entry.Tags["http.path"].Should().Be("/assets/app.js");
+    }
+
+    [Fact]
     public async Task RequestsUnderLookoutPrefix_AreNeverSelfCaptured()
     {
         var dbPath = TempDbPath();

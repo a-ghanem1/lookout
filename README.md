@@ -43,10 +43,10 @@ Three lines in `Program.cs`:
 builder.Services.AddLookout();
 
 app.UseLookout();
-app.MapLookout(); // dashboard at /lookout
+app.MapLookout(); // mounts the dashboard as a route on your app at /lookout
 ```
 
-Run your app and open `https://localhost:{port}/lookout`. Your first request appears the moment you hit any endpoint — no database setup, no configuration file.
+The dashboard is a route inside your existing app — same host, same port, no separate process. Run your app, then open `https://localhost:{port}/lookout` (where `{port}` is your app's port). Your first request appears the moment you hit any endpoint — no database setup, no configuration file.
 
 > **Dev-only by default.** Lookout throws `LookoutEnvironmentException` at startup if `IsDevelopment()` is false, unless you explicitly set `AllowInProduction = true` or `AllowInEnvironments = ["Staging"]`. There is no silent production exposure.
 
