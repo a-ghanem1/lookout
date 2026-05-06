@@ -30,6 +30,16 @@ public sealed class LookoutOptionsDefaultsTests
     }
 
     [Fact]
+    public void StoragePath_DefaultIsScopedByEntryAssembly()
+    {
+        // Two apps on the same machine must not share a database. The default path
+        // includes the entry assembly name as a subfolder so each process gets its own.
+        var entryName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name ?? "default";
+        var expectedSegment = Path.Combine("Lookout", entryName, "lookout.db");
+        _sut.StoragePath.Should().EndWith(expectedSegment);
+    }
+
+    [Fact]
     public void MaxAgeHours_DefaultIs24()
     {
         _sut.MaxAgeHours.Should().Be(24);

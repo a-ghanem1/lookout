@@ -25,7 +25,7 @@ builder.Services.AddLookout(options =>
 | `AllowInEnvironments` | `IList<string>` | `["Development"]` | Environments where Lookout is allowed to run. Lookout throws `LookoutEnvironmentException` on startup in any other environment. |
 | `AllowInProduction` | `bool` | `false` | When `true`, allows Lookout to run in any environment including Production. Logs a startup warning. Prefer `AllowInEnvironments` for named non-Production environments. |
 | `AllowNonLoopback` | `bool` | `false` | Suppresses the startup warning when the app is bound to a non-loopback address. |
-| `StoragePath` | `string` | `%LocalAppData%/Lookout/lookout.db` | Path to the SQLite database file. |
+| `StoragePath` | `string` | `%LocalAppData%/Lookout/<EntryAssemblyName>/lookout.db` | Path to the SQLite database file. Scoped by entry assembly so multiple apps on the same machine don't share a database. |
 | `MaxAgeHours` | `int` | `24` | Entries older than this many hours are pruned by the background retention service. |
 | `MaxEntryCount` | `int` | `50_000` | Secondary retention cap. When exceeded after time-based pruning, oldest entries are removed first. |
 | `ChannelCapacity` | `int` | `10_000` | Capacity of the in-memory channel between the request path and the background flusher. When full, the oldest entry is dropped. |

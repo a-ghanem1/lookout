@@ -23,11 +23,16 @@ public sealed class LookoutOptions
 
     /// <summary>
     /// Path to the SQLite database file used for entry storage.
-    /// Default: <c>%LocalAppData%/Lookout/lookout.db</c> (cross-platform equivalent).
+    /// Default: <c>%LocalAppData%/Lookout/&lt;EntryAssemblyName&gt;/lookout.db</c>
+    /// (cross-platform equivalent). Scoping by entry assembly keeps multiple apps on
+    /// the same machine from sharing — and corrupting each other's view of — the same
+    /// database. Falls back to <c>default</c> when no entry assembly is resolvable
+    /// (e.g. unmanaged hosts).
     /// </summary>
     public string StoragePath { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Lookout",
+        System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name ?? "default",
         "lookout.db");
 
     /// <summary>
