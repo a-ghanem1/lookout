@@ -18,7 +18,7 @@ public static class EfCommandRegistry
     private static readonly ConditionalWeakTable<DbCommand, object> _efOwned = new();
 
     /// <summary>
-    /// Set to <c>true</c> by <c>Lookout.EntityFrameworkCore</c>'s <c>AddEntityFrameworkCore()</c>
+    /// Set to <c>true</c> by <c>Lookout.EntityFrameworkCore</c>'s <c>AddLookoutEntityFrameworkCore()</c>
     /// so that provider-level subscribers (e.g. the Npgsql ActivitySource subscriber) can defer
     /// to the richer EF interceptor instead of double-capturing the same query.
     /// </summary>

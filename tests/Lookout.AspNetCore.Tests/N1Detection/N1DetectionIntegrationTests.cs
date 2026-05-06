@@ -278,7 +278,7 @@ public sealed class N1DetectionIntegrationTests : IDisposable
             o.StoragePath = lookoutDbPath;
             configure?.Invoke(o);
         });
-        builder.Services.AddEntityFrameworkCore();
+        builder.Services.AddLookoutEntityFrameworkCore();
         builder.Services.AddDbContext<N1DbContext>((sp, opts) =>
         {
             opts.UseSqlite($"Data Source={efDbPath}");

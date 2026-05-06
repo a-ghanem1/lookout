@@ -16,7 +16,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddLookout();
-builder.Services.AddEntityFrameworkCore();
+builder.Services.AddLookoutEntityFrameworkCore();
 
 builder.Services.AddHangfire(cfg => cfg.UseInMemoryStorage());
 builder.Services.AddHangfireServer();

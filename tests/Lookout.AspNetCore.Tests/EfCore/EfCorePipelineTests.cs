@@ -115,7 +115,7 @@ public sealed class EfCorePipelineTests : IDisposable
             new WebApplicationOptions { EnvironmentName = "Development" });
         builder.WebHost.UseTestServer();
         builder.Services.AddLookout(o => o.StoragePath = lookoutDbPath);
-        builder.Services.AddEntityFrameworkCore();
+        builder.Services.AddLookoutEntityFrameworkCore();
         builder.Services.AddDbContext<EfPipelineDbContext>((sp, opts) =>
         {
             opts.UseSqlite($"Data Source={efDbPath}");

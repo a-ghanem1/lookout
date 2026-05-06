@@ -17,7 +17,7 @@ namespace Lookout.AspNetCore.Capture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// When <c>Lookout.EntityFrameworkCore</c> is installed and <c>AddEntityFrameworkCore()</c> has
+/// When <c>Lookout.EntityFrameworkCore</c> is installed and <c>AddLookoutEntityFrameworkCore()</c> has
 /// been called, <see cref="EfCommandRegistry.EfInterceptorRegistered"/> is <c>true</c> and this
 /// subscriber does nothing — the EF Core interceptor captures richer metadata (stack traces,
 /// DbContext type, N+1 detection) for EF-originated queries. Raw non-EF Npgsql commands in the

@@ -66,11 +66,11 @@ full request lifecycle.
 
 EF Core query capture is not automatic. After installing `Lookout.EntityFrameworkCore`:
 
-**Step 1** — call `AddEntityFrameworkCore()` alongside `AddLookout()`:
+**Step 1** — call `AddLookoutEntityFrameworkCore()` alongside `AddLookout()`:
 
 ```csharp
 builder.Services.AddLookout();
-builder.Services.AddEntityFrameworkCore(); // from Lookout.EntityFrameworkCore namespace
+builder.Services.AddLookoutEntityFrameworkCore(); // from Lookout.EntityFrameworkCore namespace
 ```
 
 **Step 2** — add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument:

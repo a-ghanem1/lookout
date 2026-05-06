@@ -12,7 +12,7 @@ public static class LookoutEntityFrameworkCoreExtensions
     /// Registers <see cref="LookoutDbCommandInterceptor"/> as a DI singleton so it can be
     /// resolved and wired into DbContext registrations via <see cref="UseLookout(DbContextOptionsBuilder, IServiceProvider)"/>.
     /// </summary>
-    public static IServiceCollection AddEntityFrameworkCore(this IServiceCollection services)
+    public static IServiceCollection AddLookoutEntityFrameworkCore(this IServiceCollection services)
     {
         services.TryAddSingleton<LookoutDbCommandInterceptor>();
         // Signal to provider-level subscribers (Npgsql ActivitySource) that the richer EF

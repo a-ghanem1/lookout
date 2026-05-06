@@ -52,11 +52,11 @@ explicit wiring. It is **not** automatic from `Lookout.AspNetCore` alone.
 dotnet add package Lookout.EntityFrameworkCore
 ```
 
-2. Call `AddEntityFrameworkCore()` next to `AddLookout()` in `Program.cs`:
+2. Call `AddLookoutEntityFrameworkCore()` next to `AddLookout()` in `Program.cs`:
 
 ```csharp
 builder.Services.AddLookout();
-builder.Services.AddEntityFrameworkCore(); // Lookout.EntityFrameworkCore namespace
+builder.Services.AddLookoutEntityFrameworkCore(); // Lookout.EntityFrameworkCore namespace
 ```
 
 3. Add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument:
@@ -179,7 +179,7 @@ inside your EF module:
 // YourApp.EntityFrameworkCore / YourAppEntityFrameworkCoreModule.cs
 public override void ConfigureServices(ServiceConfigurationContext context)
 {
-    context.Services.AddEntityFrameworkCore(); // registers the Lookout interceptor singleton
+    context.Services.AddLookoutEntityFrameworkCore(); // registers the Lookout interceptor singleton
 
     Configure<AbpDbContextOptions>(options =>
     {
