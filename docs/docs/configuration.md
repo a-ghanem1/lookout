@@ -52,7 +52,7 @@ builder.Services.AddLookout(options =>
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `CaptureParameterValues` | `bool` | `true` | Captures actual SQL parameter values (after redaction). |
-| `CaptureParameterTypesOnly` | `bool` | `false` | Captures only parameter type names — never values. Overrides `CaptureParameterValues`. |
+| `CaptureParameterTypesOnly` | `bool` | `false` | Captures only parameter type names (e.g. `@id: int`) without any values. Use this when parameter redaction is not enough and you need a hard guarantee that no value ever leaves the process. Overrides `CaptureParameterValues`. |
 | `MaxStackFrames` | `int` | `20` | Maximum user-code frames captured per query. |
 | `N1DetectionMinOccurrences` | `int` | `3` | Minimum identical-shaped queries within one request before flagging as N+1. |
 | `N1IgnorePatterns` | `IList<Regex>` | `[]` | SQL shape keys matching any of these patterns are excluded from N+1 detection. |
@@ -149,7 +149,7 @@ options.Hangfire.IgnoreJobTypes.Add("MyApp.Jobs.HeartbeatJob");
 
 ## Redaction (`options.Redaction`)
 
-Lookout redacts sensitive values **before writing to storage**. Matched values are replaced with `***`.
+Lookout redacts sensitive values **before writing to storage**. Matched values are replaced with `***`. All redactors run in the background flusher, off the request path — redaction does not add latency to request handling.
 
 | Property | Type | Default members |
 |---|---|---|

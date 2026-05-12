@@ -45,12 +45,6 @@ For Hangfire job capture (optional):
 dotnet add package Lookout.Hangfire
 ```
 
-:::caution Recurring jobs — use DI, not the static API
-Use `IRecurringJobManager` from DI to schedule recurring jobs at startup.
-`RecurringJob.AddOrUpdate()` (static API) throws `InvalidOperationException` if called before
-the Hangfire server is initialized.
-:::
-
 ## 2. Wire up
 
 ### Program.cs — three lines
@@ -105,6 +99,12 @@ inside the factory delegate.
 :::info Multiple DbContexts
 Call `.UseLookout(sp)` in every `AddDbContext` call you want to instrument. Each context is
 independent.
+:::
+
+:::tip Three common first-time issues
+- **Cache badge always 0?** `AddLookout()` must come *after* `AddMemoryCache()` — it wraps whatever is registered at call time.
+- **EF queries not showing?** Install `Lookout.EntityFrameworkCore` and add `.UseLookout(sp)` inside your `AddDbContext` call — see the EF section above.
+- **Lookout throwing at startup?** The current `ASPNETCORE_ENVIRONMENT` is not `Development`. See [Troubleshooting](./troubleshooting#lookout-throws-at-startup).
 :::
 
 ## 3. Run
@@ -170,6 +170,6 @@ The banner groups all identical SQL shapes, shows a count, and links the stack f
 ## Next steps
 
 - [Configuration](./configuration) — body capture, retention window, redaction
-- [Extensibility](./extensibility) — record custom events with `ILookoutRecorder` or `Lookout.Dump()`
+- [Extensibility](./extensibility) — record custom events with `ILookoutRecorder`; call `Lookout.Dump()` anywhere to inspect any value in the dashboard
 - [Security model](./security) — understand the dev-only default and how to extend it
-- [Troubleshooting](./troubleshooting) — ABP, Serilog, Npgsql, and other framework-specific notes
+- [Troubleshooting](./troubleshooting) — ABP, Serilog, Npgsql, Hangfire, and other framework-specific notes

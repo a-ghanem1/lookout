@@ -46,14 +46,16 @@ Use this only for debugging production incidents where you have no other option.
 
 ## Loopback-only warning
 
-When your app is bound to a non-loopback address (i.e. accessible to other machines on the network), Lookout logs a warning at startup:
+When your app is bound to a non-loopback address (anything other than `127.0.0.1` / `::1`), Lookout logs a warning at startup:
 
 ```
 Lookout is bound to a non-loopback address. The dashboard may be accessible to
 other machines on this network. Set AllowNonLoopback = true to suppress this warning.
 ```
 
-To suppress it when you know what you're doing (e.g. a containerised dev environment):
+This warning is only a real concern when your dev machine is directly reachable from other hosts — for example on a shared office LAN or a cloud dev VM with a public IP. If your app runs inside a container whose network is isolated (the common case for `docker-compose` dev stacks), binding to `0.0.0.0` does not expose the dashboard externally.
+
+To suppress the warning:
 
 ```csharp
 options.AllowNonLoopback = true;

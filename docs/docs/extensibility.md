@@ -1,10 +1,10 @@
 ---
 sidebar_position: 3
-title: Custom Capture Points
+title: Extensibility
 description: Record your own events into the Lookout dashboard using ILookoutRecorder or Lookout.Dump().
 ---
 
-# Custom Capture Points
+# Extensibility
 
 Lookout exposes two extension points for recording custom events:
 

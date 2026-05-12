@@ -44,30 +44,11 @@ $env:ASPNETCORE_ENVIRONMENT      # PowerShell
 **Cause:** EF Core capture requires the separate `Lookout.EntityFrameworkCore` package and
 explicit wiring. It is **not** automatic from `Lookout.AspNetCore` alone.
 
-**Fix — three steps:**
+**Fix:** Follow the [Quickstart → EF Core setup](./quickstart#ef-core--one-extra-step-per-dbcontext). The short version:
 
-1. Install the package in the project that contains your `DbContext`:
-
-```bash
-dotnet add package Lookout.EntityFrameworkCore
-```
-
-2. Call `AddLookoutEntityFrameworkCore()` next to `AddLookout()` in `Program.cs`:
-
-```csharp
-builder.Services.AddLookout();
-builder.Services.AddLookoutEntityFrameworkCore(); // Lookout.EntityFrameworkCore namespace
-```
-
-3. Add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument:
-
-```csharp
-builder.Services.AddDbContext<AppDbContext>((sp, options) =>
-{
-    options.UseSqlServer(connectionString)
-           .UseLookout(sp);
-});
-```
+1. `dotnet add package Lookout.EntityFrameworkCore` (in the project containing your `DbContext`)
+2. Call `builder.Services.AddLookoutEntityFrameworkCore()` next to `AddLookout()`
+3. Add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument
 
 **Also check:**
 - You are using EF Core (not raw ADO.NET or Dapper only). Raw SQL via ADO.NET appears in the `sql` section, not `ef`.
@@ -91,7 +72,7 @@ suppressed to avoid double-capture).
 
 If you install `Lookout.EntityFrameworkCore` for EF queries **and** also use raw `NpgsqlCommand`
 in the same app, the raw Npgsql queries will not appear in Lookout — this is a known v1
-limitation. Migrate the raw queries to EF Core, or open an issue to request mixed-mode capture.
+limitation. Migrate the raw queries to EF Core, or [open an issue](https://github.com/a-ghanem1/Lookout/issues) to request mixed-mode capture.
 
 ---
 
@@ -134,21 +115,28 @@ Lookout registers `LookoutLoggerProvider` as an `ILoggerProvider` in DI, but Ser
 `ILoggerFactory` does not resolve providers from DI — it only routes through its own sink
 pipeline. As a result, `LookoutLoggerProvider` never receives log events.
 
-**Fix:** Add `.ReadFrom.Services(services)` to your Serilog configuration:
+**Fix:** Add `.ReadFrom.Services(services)` to your Serilog configuration. Note the extra `services` parameter in the `UseSerilog` overload:
 
 ```csharp
+// Before — Lookout logs do not appear:
+.UseSerilog((context, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .ReadFrom.Configuration(context.Configuration);
+})
+
+// After — Lookout logs forwarded via DI providers:
 .UseSerilog((context, services, loggerConfiguration) =>
 {
     loggerConfiguration
         .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)  // forwards events to all ILoggerProvider sinks in DI
-        // ... other sinks
+        .ReadFrom.Services(services);  // key addition — routes events to all ILoggerProvider sinks
 })
 ```
 
 `.ReadFrom.Services(services)` causes Serilog to forward events to all `ILoggerProvider`
-instances registered in DI, including `LookoutLoggerProvider`. This is the standard way to bridge
-Serilog with the Microsoft logging ecosystem and requires no extra package.
+instances registered in DI, including `LookoutLoggerProvider`. This is the standard bridge between
+Serilog and the Microsoft logging ecosystem and requires no extra package.
 
 ---
 
@@ -251,3 +239,45 @@ Also verify the dashboard is mounted at the path you're visiting. The default pa
 3. **`SameSite` strictness.** The cookie is set with `SameSite=Strict`. If your dev setup routes the dashboard request across a subdomain or port boundary from the page making the request, the cookie is suppressed.
 
 **Quick check:** Open DevTools → Application → Cookies → `localhost`. Confirm `__lookout-csrf` is present. If it's missing, the issue is cookie delivery; if it's present but 403 persists, check that the JS is reading and forwarding it as a header.
+
+---
+
+## "Hangfire recurring job throws at startup"
+
+**Error:**
+
+```
+InvalidOperationException: Current JobStorage instance has not been initialized yet.
+```
+
+**Cause:** `RecurringJob.AddOrUpdate()` (Hangfire's static API) was called before the Hangfire server has finished initialising — typically in a `IHostedService.StartAsync` or early startup code.
+
+**Fix:** Use `IRecurringJobManager` from DI instead of the static API:
+
+```csharp
+// ❌ Static API — throws if called before Hangfire server is ready
+RecurringJob.AddOrUpdate("my-job", () => DoWork(), Cron.Daily);
+
+// ✅ DI — safe at any point after the container is built
+public class MyStartupService(IRecurringJobManager jobs) : IHostedService
+{
+    public Task StartAsync(CancellationToken ct)
+    {
+        jobs.AddOrUpdate("my-job", () => DoWork(), Cron.Daily);
+        return Task.CompletedTask;
+    }
+    public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+}
+```
+
+Register the startup service after `AddHangfireServer()`:
+
+```csharp
+builder.Services.AddHangfire(...);
+builder.Services.AddHangfireServer();
+builder.Services.AddHostedService<MyStartupService>();
+```
+
+---
+
+**Still stuck?** Check the [Security Model](./security) for environment and startup guards, or [open an issue on GitHub](https://github.com/a-ghanem1/Lookout/issues).
