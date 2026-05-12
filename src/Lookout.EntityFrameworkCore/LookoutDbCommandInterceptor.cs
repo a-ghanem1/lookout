@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Lookout.Core;
 using Lookout.Core.Capture;
@@ -22,6 +23,15 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
     private readonly EfOptions _efOptions;
     private readonly RedactionOptions _redactionOptions;
 
+    // Stack frames are captured at *Executing time* (before async dispatch to the database)
+    // so that user-code frames are on the synchronous call stack. They would not be present
+    // at *Executed time because the async state machine has suspended by then (true for all
+    // providers with real async I/O, e.g. Npgsql). The table is keyed on the DbCommand
+    // instance; ConditionalWeakTable GCs the entry when the command is collected.
+    private static readonly ConditionalWeakTable<DbCommand, FrameHolder> _pendingStacks = new();
+
+    private sealed class FrameHolder { public IReadOnlyList<EfStackFrame>? Frames; }
+
     public LookoutDbCommandInterceptor(ILookoutRecorder recorder, IOptions<LookoutOptions> options)
     {
         _recorder = recorder;
@@ -30,12 +40,29 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
         _redactionOptions = opts.Redaction;
     }
 
+    private void StampStack(DbCommand command)
+    {
+        var holder = _pendingStacks.GetOrCreateValue(command);
+        holder.Frames = StackTraceCapture.Capture(skipFrames: 0, _efOptions.MaxStackFrames);
+    }
+
+    private static IReadOnlyList<EfStackFrame> ConsumeStack(DbCommand command)
+    {
+        if (_pendingStacks.TryGetValue(command, out var holder) && holder.Frames is { } frames)
+        {
+            holder.Frames = null;
+            return frames;
+        }
+        return [];
+    }
+
     // ── Executing (before) — stamp the command so the ADO.NET subscriber skips it ──
 
     public override InterceptionResult<DbDataReader> ReaderExecuting(
         DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result)
     {
         EfCommandRegistry.Mark(command);
+        StampStack(command);
         return result;
     }
 
@@ -44,6 +71,7 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
         CancellationToken cancellationToken = default)
     {
         EfCommandRegistry.Mark(command);
+        StampStack(command);
         return new ValueTask<InterceptionResult<DbDataReader>>(result);
     }
 
@@ -51,6 +79,7 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
         DbCommand command, CommandEventData eventData, InterceptionResult<int> result)
     {
         EfCommandRegistry.Mark(command);
+        StampStack(command);
         return result;
     }
 
@@ -59,6 +88,7 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
         CancellationToken cancellationToken = default)
     {
         EfCommandRegistry.Mark(command);
+        StampStack(command);
         return new ValueTask<InterceptionResult<int>>(result);
     }
 
@@ -66,6 +96,7 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
         DbCommand command, CommandEventData eventData, InterceptionResult<object> result)
     {
         EfCommandRegistry.Mark(command);
+        StampStack(command);
         return result;
     }
 
@@ -74,6 +105,7 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
         CancellationToken cancellationToken = default)
     {
         EfCommandRegistry.Mark(command);
+        StampStack(command);
         return new ValueTask<InterceptionResult<object>>(result);
     }
 
@@ -140,7 +172,7 @@ public sealed class LookoutDbCommandInterceptor : DbCommandInterceptor
             RowsAffected: rowsAffected,
             DbContextType: dbContextType,
             CommandType: commandType,
-            Stack: StackTraceCapture.Capture(skipFrames: 0, _efOptions.MaxStackFrames));
+            Stack: ConsumeStack(command));
 
         var tags = new Dictionary<string, string>(StringComparer.Ordinal)
         {

@@ -79,6 +79,29 @@ public sealed class LookoutDbCommandInterceptorTests
     }
 
     [Fact]
+    public async Task Query_Stack_ContainsCallerFrame()
+    {
+        // Stack must be captured at ReaderExecuting time (before async dispatch) so that
+        // the caller frame is on the synchronous call stack. For providers with true async
+        // I/O (e.g. Npgsql) the frame would be absent if captured at ReaderExecuted time.
+        var (interceptor, recorder) = BuildInterceptor();
+        var (ctx, conn) = await BuildContextAsync(interceptor);
+        await using (ctx) await using (conn)
+        {
+            recorder.Clear();
+
+            var _ = await ctx.Widgets.ToListAsync();
+
+            var content = JsonSerializer.Deserialize<EfEntryContent>(
+                recorder.Entries.First(e => e.Type == "ef").Content, LookoutJson.Options)!;
+
+            content.Stack.Should().Contain(
+                f => f.Method.Contains(nameof(Query_Stack_ContainsCallerFrame)),
+                because: "stack is captured at Executing time when the caller frame is still on the synchronous call stack");
+        }
+    }
+
+    [Fact]
     public async Task NonQuery_RecordsRowsAffectedAndTag()
     {
         var (interceptor, recorder) = BuildInterceptor();
