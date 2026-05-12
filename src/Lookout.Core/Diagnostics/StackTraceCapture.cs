@@ -21,6 +21,8 @@ public static class StackTraceCapture
         "Microsoft.EntityFrameworkCore",
         "System",
         "Microsoft.AspNetCore",
+        "Hangfire",
+        "Npgsql",
     ];
 
     // Matches standard async/iterator state machine types: <MethodName>d__N
@@ -39,6 +41,7 @@ public static class StackTraceCapture
         "Lookout.Storage.Sqlite",
         "Lookout.Dashboard",
         "Lookout.Benchmarks",
+        "Lookout.Hangfire",
     };
 
     /// <summary>

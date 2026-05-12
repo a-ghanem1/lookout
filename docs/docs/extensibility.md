@@ -17,6 +17,13 @@ Lookout exposes two extension points for recording custom events:
 
 Call `Lookout.Dump()` anywhere in your application code to ship a JSON snapshot of any value to the dashboard, correlated to the current request.
 
+:::info Using Dump() from Infrastructure or Domain projects
+`Dump()` lives in `Lookout.Core` (accessed via `using static Lookout.Core.Lookout;`). It is
+already available transitively to any project that references `Lookout.AspNetCore`. If you call
+it from a project that does **not** reference `Lookout.AspNetCore` (e.g. an Infrastructure or
+Domain layer), add a direct reference to `Lookout.Core`.
+:::
+
 ```csharp
 using Lookout.Core;
 

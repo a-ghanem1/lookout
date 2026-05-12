@@ -52,6 +52,28 @@ public sealed class StackTraceCaptureTests
     }
 
     [Fact]
+    public void IsNoiseAssembly_ReturnsTrueForHangfire()
+    {
+        StackTraceCapture.IsNoiseAssembly("Hangfire").Should().BeTrue();
+        StackTraceCapture.IsNoiseAssembly("Hangfire.Core").Should().BeTrue();
+        StackTraceCapture.IsNoiseAssembly("Hangfire.AspNetCore").Should().BeTrue();
+        StackTraceCapture.IsNoiseAssembly("Hangfire.SqlServer").Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsNoiseAssembly_ReturnsTrueForNpgsql()
+    {
+        StackTraceCapture.IsNoiseAssembly("Npgsql").Should().BeTrue();
+        StackTraceCapture.IsNoiseAssembly("Npgsql.EntityFrameworkCore.PostgreSQL").Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsNoiseAssembly_ReturnsTrueForLookoutHangfire()
+    {
+        StackTraceCapture.IsNoiseAssembly("Lookout.Hangfire").Should().BeTrue();
+    }
+
+    [Fact]
     public void IsNoiseAssembly_ReturnsFalseForUserCode()
     {
         StackTraceCapture.IsNoiseAssembly("MyApp.Services").Should().BeFalse();

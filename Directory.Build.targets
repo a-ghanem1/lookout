@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    macOS (Sequoia+) marks files written by SDK processes with com.apple.provenance.
+    MSBuild then cannot read its own AssemblyInfoInputs.cache on the next incremental build,
+    causing MSB3492 which TreatWarningsAsErrors promotes to a hard error.
+    Delete the stale cache file so GenerateAssemblyInfo always recreates it cleanly.
+  -->
+  <Target Name="DeleteStaleAssemblyInfoCache"
+          BeforeTargets="GenerateAssemblyInfo"
+          Condition="$([MSBuild]::IsOsPlatform('OSX'))">
+    <Delete Files="$(IntermediateOutputPath)$(TargetName).AssemblyInfoInputs.cache"
+            Condition="Exists('$(IntermediateOutputPath)$(TargetName).AssemblyInfoInputs.cache')" />
+  </Target>
+</Project>

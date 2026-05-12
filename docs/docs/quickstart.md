@@ -45,6 +45,12 @@ For Hangfire job capture (optional):
 dotnet add package Lookout.Hangfire
 ```
 
+:::caution Recurring jobs — use DI, not the static API
+Use `IRecurringJobManager` from DI to schedule recurring jobs at startup.
+`RecurringJob.AddOrUpdate()` (static API) throws `InvalidOperationException` if called before
+the Hangfire server is initialized.
+:::
+
 ## 2. Wire up
 
 ### Program.cs — three lines
