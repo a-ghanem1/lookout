@@ -303,6 +303,23 @@ app.MapGet("/orders/{id:int}", async (
     });
 });
 
+// Caught exception demo: logs an InvalidOperationException via logger.LogError and continues.
+// Lookout should capture: (a) a log entry with exception info, (b) a companion exception entry
+// (handled: true), and (c) the HTTP entry should carry the exception.count badge.
+app.MapGet("/exception-caught", (ILoggerFactory loggerFactory) =>
+{
+    var logger = loggerFactory.CreateLogger("Sample.ExceptionCaught");
+    try
+    {
+        throw new InvalidOperationException("Simulated caught exception for Lookout testing");
+    }
+    catch (InvalidOperationException ex)
+    {
+        logger.LogError(ex, "Caught and handled: {Message}", ex.Message);
+    }
+    return Results.Ok(new { message = "Exception was caught and logged — check Lookout dashboard" });
+});
+
 app.MapLookout();
 
 // ── M8.5 — Hangfire job capture demo ─────────────────────────────────────────
