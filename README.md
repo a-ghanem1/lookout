@@ -3,7 +3,7 @@
 
   <h1>Lookout for ASP.NET Core</h1>
 
-  <p>Zero-config dev-time diagnostics dashboard for ASP.NET Core.</p>
+  <p>Minimal-config dev-time diagnostics dashboard for ASP.NET Core.</p>
 
   [![NuGet](https://img.shields.io/nuget/v/Lookout.AspNetCore?label=Lookout.AspNetCore&color=512BD4)](https://www.nuget.org/packages/Lookout.AspNetCore/)
   [![NuGet](https://img.shields.io/nuget/v/Lookout.Hangfire?label=Lookout.Hangfire&color=512BD4)](https://www.nuget.org/packages/Lookout.Hangfire/)
