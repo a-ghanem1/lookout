@@ -61,6 +61,38 @@ To suppress the warning:
 options.AllowNonLoopback = true;
 ```
 
+:::warning AllowNonLoopback removes the only network-level protection
+When `AllowNonLoopback = true` is set, Lookout suppresses the warning but the dashboard remains
+accessible to any host that can reach your app on that address. Lookout does not provide
+dashboard authentication.
+
+If you are working in a **shared environment** — a cloud dev VM, a Docker stack with published
+ports, a shared dev server — restrict access to the `/lookout` prefix at your reverse proxy or
+ingress before setting this option:
+
+```nginx
+# nginx: allow only internal networks to reach the dashboard
+location /lookout {
+    allow 127.0.0.1;
+    allow 10.0.0.0/8;
+    deny all;
+    proxy_pass http://localhost:5000;
+}
+```
+
+```yaml
+# Traefik middleware — IP allowlist
+http:
+  middlewares:
+    lookout-ipallow:
+      ipAllowList:
+        sourceRange: ["127.0.0.1/32", "10.0.0.0/8"]
+```
+
+For a local Docker Compose stack where the container network is isolated (no published ports),
+this is not required — the dashboard is only reachable from within the compose network.
+:::
+
 ---
 
 ## CSRF protection

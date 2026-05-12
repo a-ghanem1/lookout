@@ -5,8 +5,8 @@ import styles from './index.module.css';
 
 const features = [
   {
-    title: 'Zero config',
-    body: 'Three lines in Program.cs. No database setup, no separate process, no config file. Your first capture appears the moment you hit an endpoint.',
+    title: 'Minimal config',
+    body: 'One package install, three lines in Program.cs for a new project — a few more for EF Core and Hangfire. No separate process, no database setup. Your first capture appears the moment you hit an endpoint.',
   },
   {
     title: 'N+1 detection',

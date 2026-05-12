@@ -6,7 +6,7 @@ description: Install Lookout and get your first request captured in under 2 minu
 
 # Quickstart
 
-Get your first request captured in under 2 minutes — no database setup, no config file.
+Get your first request captured in under 2 minutes — no database setup, no separate process.
 
 ## Prerequisites
 
@@ -44,6 +44,20 @@ For Hangfire job capture (optional):
 ```bash
 dotnet add package Lookout.Hangfire
 ```
+
+Then register it alongside `AddLookout()`:
+
+```csharp
+builder.Services.AddHangfire(cfg => cfg.UseInMemoryStorage());
+builder.Services.AddHangfireServer();
+builder.Services.AddLookoutHangfire(); // from Lookout.Hangfire namespace
+```
+
+:::tip Hangfire recurring jobs
+If you use `RecurringJob.AddOrUpdate()` (Hangfire's static API), see
+[Troubleshooting → Hangfire recurring job throws at startup](./troubleshooting#hangfire-recurring-job-throws-at-startup).
+:::
+
 
 ## 2. Wire up
 
@@ -100,6 +114,47 @@ inside the factory delegate.
 Call `.UseLookout(sp)` in every `AddDbContext` call you want to instrument. Each context is
 independent.
 :::
+
+### Complete Program.cs reference
+
+All the pieces above in one copy-pasteable block, in the correct order:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// ── 1. Caches first ────────────────────────────────────────────────────────────
+// AddLookout() wraps whatever is registered here — caches must exist before it.
+builder.Services.AddMemoryCache();
+builder.Services.AddDistributedMemoryCache(); // or Redis, etc.
+
+// ── 2. Lookout ─────────────────────────────────────────────────────────────────
+builder.Services.AddLookout();
+
+// ── 3. EF Core (if used) ──────────────────────────────────────────────────────
+builder.Services.AddLookoutEntityFrameworkCore();
+
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+    options.UseSqlServer(connectionString).UseLookout(sp));
+
+// ── 4. Hangfire (if used) ──────────────────────────────────────────────────────
+builder.Services.AddHangfire(cfg => cfg.UseSqlServerStorage(connectionString));
+builder.Services.AddHangfireServer();
+builder.Services.AddLookoutHangfire();
+
+var app = builder.Build();
+
+// ── 5. Middleware ──────────────────────────────────────────────────────────────
+// UseLookout() must be outermost — call before UseRouting and other middleware.
+app.UseLookout();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ── 6. Endpoints ──────────────────────────────────────────────────────────────
+app.MapControllers(); // or MapGet, etc.
+app.MapLookout();     // mounts the dashboard at /lookout
+
+app.Run();
+```
 
 :::tip Three common first-time issues
 - **Cache badge always 0?** `AddLookout()` must come *after* `AddMemoryCache()` — it wraps whatever is registered at call time.

@@ -187,6 +187,39 @@ client regardless of registration order.
 
 ---
 
+## "Caught exceptions not appearing in the Exceptions panel" {#caught-exceptions-not-appearing}
+
+**Symptom:** `logger.LogError(ex, ...)` is called and the log entry appears, but no entry shows up
+in the Exceptions panel and the HTTP entry has no `exception.count` badge.
+
+**Cause:** Lookout captures caught exceptions from log events. If the log event is filtered out
+by `IgnoreCategories` before Lookout sees it, the attached exception is never recorded.
+
+The default `IgnoreCategories` list includes `Microsoft.*` and `System.*`. This covers EF Core
+and ASP.NET Core noise (intended), but also any logger whose category name starts with
+`Microsoft.` — including user-code classes in a `Microsoft.*`-prefixed namespace, or third-party
+libraries that follow Microsoft naming conventions.
+
+**Fix:** Narrow the filter to only the prefixes you actually want to suppress:
+
+```csharp
+builder.Services.AddLookout(options =>
+{
+    options.Logging.IgnoreCategories =
+    [
+        "Microsoft.EntityFrameworkCore.*",
+        "Microsoft.AspNetCore.*",
+        "System.*",
+    ];
+});
+```
+
+**How to confirm the category is the problem:** Add a temporary `logger.LogError(ex, "test")`
+using a logger created with a category name you know is not filtered (e.g. `"MyApp.Debug"`).
+If that exception appears in the panel, the original category was the issue.
+
+---
+
 ## "N+1 not detected"
 
 **Symptom:** You know there is a repeated query loop but no N+1 banner appears.

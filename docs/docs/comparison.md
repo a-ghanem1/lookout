@@ -61,7 +61,7 @@ Aspire Dashboard is a production observability tool built on OpenTelemetry. It p
 - Works across service boundaries — see the whole call graph
 
 **Where Lookout differs:**
-- Zero-config — add one package, three lines, done. No AppHost project, no OTEL exporter, no Aspire setup
+- Minimal config — add one package, three lines for a new project. No AppHost project, no OTEL exporter, no Aspire setup
 - Works with any ASP.NET Core app — not tied to the Aspire hosting model
 - Per-request detail: SQL text with parameters, N+1 detection, cache hit ratios, `Lookout.Dump()` — Aspire Dashboard shows OTEL spans, not raw SQL
 - Dev-only by design — opinionated about staying safe

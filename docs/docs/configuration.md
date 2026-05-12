@@ -109,6 +109,34 @@ options.Logging.MinimumLevel = LogLevel.Warning;
 options.Logging.IgnoreCategories.Add("Hangfire.*");
 ```
 
+:::warning IgnoreCategories silently drops caught exceptions
+`IgnoreCategories` filters log events **before** Lookout inspects them — including the exception
+object attached to `logger.LogError(ex, ...)` calls. If a logger's category name matches a
+filtered pattern, Lookout never sees the exception, and no entry appears in the Exceptions panel.
+
+The default `Microsoft.*` filter is broad. It covers EF Core and ASP.NET Core internals (intended)
+but also any user code whose namespace starts with `Microsoft.` (often unintended — common in
+ABP, third-party packages, or projects that follow Microsoft naming conventions).
+
+**If caught exceptions are not appearing in the panel**, check whether your logger category
+matches an entry in `IgnoreCategories`:
+
+```csharp
+// Too broad — drops everything from the Microsoft.* prefix, including user code:
+// options.Logging.IgnoreCategories = ["Microsoft.*", "System.*"];  ← default
+
+// Fix: narrow to the specific namespaces you actually want to suppress:
+options.Logging.IgnoreCategories =
+[
+    "Microsoft.EntityFrameworkCore.*",
+    "Microsoft.AspNetCore.*",
+    "System.*",
+];
+```
+
+See also [Troubleshooting → Caught exceptions not appearing](./troubleshooting#caught-exceptions-not-appearing).
+:::
+
 ---
 
 ## Exceptions (`options.Exceptions`)

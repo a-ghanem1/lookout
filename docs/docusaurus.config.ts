@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Lookout',
-  tagline: 'Zero-config dev-time diagnostics for ASP.NET Core',
+  tagline: 'Minimal-config dev-time diagnostics for ASP.NET Core',
   favicon: 'img/favicon.png',
 
   url: 'https://a-ghanem1.github.io',
@@ -56,7 +56,7 @@ const config: Config = {
   themeConfig: {
     image: 'img/social.png',
     metadata: [
-      { name: 'description', content: 'Zero-config dev-time diagnostics dashboard for ASP.NET Core. Captures HTTP, EF Core (with N+1 detection), outbound HTTP, cache, exceptions, logs, and Hangfire jobs — correlated per request.' },
+      { name: 'description', content: 'Minimal-config dev-time diagnostics dashboard for ASP.NET Core. Captures HTTP, EF Core (with N+1 detection), outbound HTTP, cache, exceptions, logs, and Hangfire jobs — correlated per request.' },
       { name: 'keywords', content: 'aspnetcore, dotnet, diagnostics, ef-core, n+1, hangfire, observability, dashboard, lookout' },
       { property: 'og:type', content: 'website' },
       { property: 'og:image:width', content: '1280' },
