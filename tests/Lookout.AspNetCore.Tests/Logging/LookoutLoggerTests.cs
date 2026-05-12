@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Lookout.AspNetCore.Capture.Logging;
 using Lookout.Core;
+using Lookout.Core.Diagnostics;
 using Lookout.Core.Schemas;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -226,7 +227,7 @@ public sealed class LookoutLoggerTests
 
         logger.LogError(ex, "an error occurred");
 
-        var content = Deserialize(recorder.Entries.Single());
+        var content = Deserialize(recorder.Entries.Single(e => e.Type == "log"));
         content.ExceptionType.Should().Be(typeof(InvalidOperationException).FullName);
         content.ExceptionMessage.Should().Be("something broke");
     }
@@ -241,7 +242,7 @@ public sealed class LookoutLoggerTests
 
         logger.LogError(ex, "error");
 
-        var content = Deserialize(recorder.Entries.Single());
+        var content = Deserialize(recorder.Entries.Single(e => e.Type == "log"));
         // Stack details live in the companion exception entry, not here.
         content.Should().NotBeNull("schema has no Stack field — short-form only");
     }
@@ -378,5 +379,127 @@ public sealed class LookoutLoggerTests
     private sealed class ThrowingRecorder : ILookoutRecorder
     {
         public void Record(LookoutEntry entry) => throw new Exception("recorder exploded");
+    }
+
+    // ── exception entry companion ─────────────────────────────────────────────
+
+    [Fact]
+    public void LogError_WithException_EmitsCompanionExceptionEntry()
+    {
+        var (logger, recorder, _) = Build();
+        var ex = new InvalidOperationException("boom");
+
+        logger.LogError(ex, "error occurred");
+
+        recorder.Entries.Should().HaveCount(2);
+        recorder.Entries.Should().ContainSingle(e => e.Type == "exception");
+    }
+
+    [Fact]
+    public void LogError_WithException_CompanionEntry_IsHandledTrue()
+    {
+        var (logger, recorder, _) = Build();
+        var ex = new InvalidOperationException("boom");
+
+        logger.LogError(ex, "error occurred");
+
+        var exEntry = recorder.Entries.Single(e => e.Type == "exception");
+        exEntry.Tags["exception.handled"].Should().Be("true");
+    }
+
+    [Fact]
+    public void LogError_WithException_CompanionEntry_HasCorrectExceptionType()
+    {
+        var (logger, recorder, _) = Build();
+        var ex = new InvalidOperationException("boom");
+
+        logger.LogError(ex, "error occurred");
+
+        var exEntry = recorder.Entries.Single(e => e.Type == "exception");
+        exEntry.Tags["exception.type"].Should().Be(typeof(InvalidOperationException).FullName);
+    }
+
+    [Fact]
+    public void LogError_WithException_InsideScope_IncrementsExceptionCount()
+    {
+        var (logger, recorder, _) = Build();
+        var ex = new InvalidOperationException("boom");
+        using var scope = N1RequestScope.Begin(new Lookout.Core.EfOptions());
+
+        logger.LogError(ex, "error occurred");
+
+        scope.ExceptionCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void LogError_WithException_OutsideScope_DoesNotThrow()
+    {
+        var (logger, recorder, _) = Build();
+        var ex = new InvalidOperationException("boom");
+        N1RequestScope.Current.Should().BeNull();
+
+        var act = () => logger.LogError(ex, "error occurred");
+
+        act.Should().NotThrow();
+        recorder.Entries.Should().ContainSingle(e => e.Type == "exception");
+    }
+
+    [Fact]
+    public void LogWarning_WithException_DoesNotEmitCompanionExceptionEntry()
+    {
+        var (logger, recorder, _) = Build();
+        var ex = new InvalidOperationException("boom");
+
+        logger.LogWarning(ex, "warning with exception");
+
+        recorder.Entries.Should().ContainSingle(e => e.Type == "log");
+        recorder.Entries.Should().NotContain(e => e.Type == "exception");
+    }
+
+    [Fact]
+    public void LogError_WithException_WhenExceptionsCaptureDisabled_NoCompanionEntry()
+    {
+        var (logger, recorder, _) = Build(configure: o => o.Exceptions.Capture = false);
+        var ex = new InvalidOperationException("boom");
+
+        logger.LogError(ex, "error occurred");
+
+        recorder.Entries.Should().ContainSingle(e => e.Type == "log");
+        recorder.Entries.Should().NotContain(e => e.Type == "exception");
+    }
+
+    [Fact]
+    public void LogError_WithIgnoredExceptionType_NoCompanionEntry()
+    {
+        var (logger, recorder, _) = Build(configure: o =>
+            o.Exceptions.IgnoreExceptionTypes = [typeof(OperationCanceledException).FullName!]);
+        var ex = new OperationCanceledException("cancelled");
+
+        logger.LogError(ex, "cancellation");
+
+        recorder.Entries.Should().ContainSingle(e => e.Type == "log");
+        recorder.Entries.Should().NotContain(e => e.Type == "exception");
+    }
+
+    [Fact]
+    public void LogError_WithoutException_NoCompanionEntry()
+    {
+        var (logger, recorder, _) = Build();
+
+        logger.LogError("error without exception");
+
+        recorder.Entries.Should().ContainSingle(e => e.Type == "log");
+        recorder.Entries.Should().NotContain(e => e.Type == "exception");
+    }
+
+    [Fact]
+    public void LogError_WithException_LogEntryPreserved()
+    {
+        var (logger, recorder, _) = Build();
+        var ex = new InvalidOperationException("boom");
+
+        logger.LogError(ex, "error occurred");
+
+        recorder.Entries.Should().ContainSingle(e => e.Type == "log");
     }
 }

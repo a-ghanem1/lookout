@@ -54,6 +54,7 @@ public static class LookoutServiceCollectionExtensions
         services.AddHostedService<LookoutRetentionHostedService>();
         services.AddHostedService<AdoNetDiagnosticSubscriber>();
         services.AddHostedService<NpgsqlActivitySubscriber>();
+        services.AddHostedService<LookoutStartupValidator>();
 
         // Exception capture — IExceptionHandler (requires UseExceptionHandler() in pipeline) +
         // DiagnosticListener fallback for exceptions that bypass UseExceptionHandler().

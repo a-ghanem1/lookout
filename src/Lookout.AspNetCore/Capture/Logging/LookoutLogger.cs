@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Lookout.AspNetCore.Capture.Exceptions;
 using Lookout.Core;
 using Lookout.Core.Diagnostics;
 using Lookout.Core.Schemas;
@@ -89,6 +90,17 @@ internal sealed class LookoutLogger : ILogger
 
             N1RequestScope.Current?.TrackLog(logLevel);
             _provider.Recorder.Record(entry);
+
+            var exOpts = _options.Value.Exceptions;
+            if (exception is not null
+                && logLevel >= LogLevel.Error
+                && exOpts.Capture
+                && !ExceptionCapture.IsIgnored(exception, exOpts.IgnoreExceptionTypes))
+            {
+                var exEntry = ExceptionCapture.BuildEntry(exception, handled: true, exOpts.MaxStackFrames);
+                N1RequestScope.Current?.TrackException();
+                _provider.Recorder.Record(exEntry);
+            }
         }
         catch
         {

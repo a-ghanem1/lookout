@@ -25,12 +25,19 @@ dotnet new webapi -n MyApp && cd MyApp
 dotnet add package Lookout.AspNetCore
 ```
 
-If your project uses **EF Core**, also install the EF integration package in the project that
-contains your `DbContext`:
+If your project uses **EF Core 8 or later**, also install the EF integration package in the project
+that contains your `DbContext`:
 
 ```bash
 dotnet add package Lookout.EntityFrameworkCore
 ```
+
+:::note Clean Architecture solutions
+In a Clean Architecture solution, install `Lookout.EntityFrameworkCore` in your **Infrastructure
+project** — that is where `AddDbContext` lives. `Lookout.AspNetCore` goes only in the Web host
+project. The two packages are independent; you do not need to reference `Lookout.AspNetCore` from
+Infrastructure.
+:::
 
 For Hangfire job capture (optional):
 
@@ -66,14 +73,16 @@ full request lifecycle.
 
 EF Core query capture is not automatic. After installing `Lookout.EntityFrameworkCore`:
 
-**Step 1** — call `AddLookoutEntityFrameworkCore()` alongside `AddLookout()`:
+**Step 1** — call `AddLookoutEntityFrameworkCore()` in the project where your DbContext is
+registered (the Web host in a simple project; the Infrastructure project in Clean Architecture):
 
 ```csharp
 builder.Services.AddLookout();
 builder.Services.AddLookoutEntityFrameworkCore(); // from Lookout.EntityFrameworkCore namespace
 ```
 
-**Step 2** — add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument:
+**Step 2** — add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument.
+Note that `.UseLookout(sp)` is called inside `AddDbContext`, not in `Program.cs`:
 
 ```csharp
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
