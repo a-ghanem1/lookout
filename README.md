@@ -6,6 +6,7 @@
   <p>Minimal-config dev-time diagnostics dashboard for ASP.NET Core.</p>
 
   [![NuGet](https://img.shields.io/nuget/v/Lookout.AspNetCore?label=Lookout.AspNetCore&color=512BD4)](https://www.nuget.org/packages/Lookout.AspNetCore/)
+  [![NuGet](https://img.shields.io/nuget/v/Lookout.EntityFrameworkCore?label=Lookout.EntityFrameworkCore&color=512BD4)](https://www.nuget.org/packages/Lookout.EntityFrameworkCore/)
   [![NuGet](https://img.shields.io/nuget/v/Lookout.Hangfire?label=Lookout.Hangfire&color=512BD4)](https://www.nuget.org/packages/Lookout.Hangfire/)
   [![CI](https://github.com/a-ghanem1/Lookout/actions/workflows/ci.yml/badge.svg)](https://github.com/a-ghanem1/Lookout/actions/workflows/ci.yml)
   [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -25,6 +26,12 @@
 
 ```
 dotnet add package Lookout.AspNetCore
+```
+
+For EF Core query capture (required in Clean Architecture / Infrastructure projects):
+
+```
+dotnet add package Lookout.EntityFrameworkCore
 ```
 
 For Hangfire job capture:
@@ -57,7 +64,7 @@ The dashboard is a route inside your existing app — same host, same port, no s
 | Capture point | What you get |
 |---|---|
 | **HTTP Requests** | Method, path, status, duration, headers, user identity, body (opt-in) |
-| **EF Core Queries** | SQL text, parameters, duration, rows affected, stack trace to your code |
+| **EF Core Queries** | SQL text, parameters, duration, rows affected, stack trace to your code (EF Core 8+) |
 | **N+1 Detection** | Flags 3+ identical-normalised queries per request with a grouped banner |
 | **Raw ADO.NET / Dapper** | Via `SqlClientDiagnosticListener` (SQL Server); de-duped against EF |
 | **Outbound HTTP** | All `HttpClient` calls via auto-registered `DelegatingHandler` |
@@ -132,6 +139,8 @@ builder.Services.AddLookout(options =>
 ```
 
 Full reference at [a-ghanem1.github.io/Lookout/docs/configuration](https://a-ghanem1.github.io/Lookout/docs/configuration).
+
+> **Cache capture registration order:** Call `AddMemoryCache()` and `AddStackExchangeRedisCache()` *before* `AddLookout()`. Lookout decorates these services at registration time and emits a startup warning if the order is wrong.
 
 
 ---
