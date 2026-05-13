@@ -13,7 +13,7 @@ internal sealed class SqliteConnectionFactory : ISqliteConnectionFactory, IDispo
     public SqliteConnectionFactory(LookoutOptions options)
     {
         _dbPath = options.StoragePath;
-        _connectionString = new SqliteConnectionStringBuilder { DataSource = _dbPath }.ToString();
+        _connectionString = new SqliteConnectionStringBuilder { DataSource = _dbPath, Pooling = false }.ToString();
 
         // SQLite refuses to create the DB file if its parent directory is missing
         // (error 14). Create it up-front so the first OpenAsync succeeds.
@@ -37,8 +37,13 @@ internal sealed class SqliteConnectionFactory : ISqliteConnectionFactory, IDispo
 
         await using (var walCmd = conn.CreateCommand())
         {
-            walCmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;";
-            await walCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            walCmd.CommandText = "PRAGMA journal_mode=WAL";
+            await walCmd.ExecuteScalarAsync(ct).ConfigureAwait(false); // returns the resulting mode
+        }
+        await using (var syncCmd = conn.CreateCommand())
+        {
+            syncCmd.CommandText = "PRAGMA synchronous=NORMAL";
+            await syncCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 
         await EnsureSchemaAsync(conn, ct).ConfigureAwait(false);

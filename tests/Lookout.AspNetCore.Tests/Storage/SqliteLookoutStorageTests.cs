@@ -20,7 +20,8 @@ public sealed class SqliteLookoutStorageTests : IDisposable
     public void Dispose()
     {
         _storage.Dispose();
-        SqliteConnection.ClearAllPools();
+        // No ClearAllPools needed: Pooling=false means connections are physically
+        // closed on dispose, so the file handle is already released here.
         if (File.Exists(_dbPath)) File.Delete(_dbPath);
         if (File.Exists(_dbPath + "-wal")) File.Delete(_dbPath + "-wal");
         if (File.Exists(_dbPath + "-shm")) File.Delete(_dbPath + "-shm");
