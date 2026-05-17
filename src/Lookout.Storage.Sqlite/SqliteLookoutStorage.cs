@@ -72,7 +72,7 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             "FROM entries e " +
             "WHERE e.rowid IN (SELECT rowid FROM entries_fts WHERE entries_fts MATCH @query) " +
             "ORDER BY e.timestamp_utc DESC LIMIT @limit";
-        cmd.Parameters.AddWithValue("@query", query);
+        cmd.Parameters.AddWithValue("@query", ToFtsQuery(query));
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var results = new List<LookoutEntry>();
@@ -138,7 +138,7 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             where.Add("e.rowid IN (SELECT rowid FROM entries_fts WHERE entries_fts MATCH @q)");
-            cmd.Parameters.AddWithValue("@q", query.Q);
+            cmd.Parameters.AddWithValue("@q", ToFtsQuery(query.Q));
         }
 
         if (query.TypeIn is { Count: > 0 } typeIn)
@@ -381,7 +381,7 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
             "WHERE entries_fts MATCH @q " +
             "ORDER BY entries_fts.rank " +
             "LIMIT @limit";
-        cmd.Parameters.AddWithValue("@q", query);
+        cmd.Parameters.AddWithValue("@q", ToFtsQuery(query));
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var results = new List<SearchResult>();
@@ -398,6 +398,18 @@ public sealed class SqliteLookoutStorage : ILookoutStorage, IDisposable
                 Snippet: BuildSummary(type, contentJson, query)));
         }
         return results;
+    }
+
+    // Transforms plain user input into an FTS5 prefix query so that partial stems match.
+    // "TodoList" → "TodoList"* (matches TodoList, TodoLists, …).
+    // Inputs that already contain FTS5 operators (quotes, +, -) are passed through unchanged.
+    private static string ToFtsQuery(string input)
+    {
+        input = input.Trim();
+        if (input.Contains('"') || input.Contains('+') || input.Contains('-'))
+            return input;
+        var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return string.Join(" ", parts.Select(static t => $"\"{t}\"*"));
     }
 
     private static string BuildSummary(string type, string contentJson, string query)

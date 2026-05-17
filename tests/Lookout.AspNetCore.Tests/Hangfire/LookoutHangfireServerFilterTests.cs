@@ -148,6 +148,76 @@ public sealed class LookoutHangfireServerFilterTests
     }
 
     [Fact]
+    public void OnPerformed_FailedJob_AlsoRecordsExceptionEntry()
+    {
+        var filter = BuildFilter(out var recorded);
+        var ex = new InvalidOperationException("order not found");
+        var (performing, performed) = MakeServerContexts(
+            typeof(SampleJob), nameof(SampleJob.Execute), exception: ex);
+
+        filter.OnPerforming(performing);
+        filter.OnPerformed(performed);
+
+        // Two entries: the job-execution entry plus a separate exception entry.
+        recorded.Should().HaveCount(2);
+        recorded.Should().ContainSingle(e => e.Type == "job-execution");
+        recorded.Should().ContainSingle(e => e.Type == "exception");
+    }
+
+    [Fact]
+    public void OnPerformed_FailedJob_ExceptionEntry_HasCorrectContent()
+    {
+        var filter = BuildFilter(out var recorded);
+        var ex = new InvalidOperationException("order not found");
+        var (performing, performed) = MakeServerContexts(
+            typeof(SampleJob), nameof(SampleJob.Execute), exception: ex);
+
+        filter.OnPerforming(performing);
+        filter.OnPerformed(performed);
+
+        var excEntry = recorded.Single(e => e.Type == "exception");
+        var content = JsonSerializer.Deserialize<ExceptionEntryContent>(excEntry.Content, LookoutJson.Options)!;
+
+        content.ExceptionType.Should().Contain(nameof(InvalidOperationException));
+        content.Message.Should().Be("order not found");
+        content.Handled.Should().BeTrue();
+        excEntry.Tags["exception.type"].Should().Contain(nameof(InvalidOperationException));
+        excEntry.Tags["job.id"].Should().Be("job-1");
+        excEntry.Tags["exception.handled"].Should().Be("true");
+    }
+
+    [Fact]
+    public void OnPerformed_FailedJob_ExceptionEntry_CorrelatedToEnqueueRequestId()
+    {
+        var filter = BuildFilter(out var recorded);
+        var ex = new InvalidOperationException("boom");
+        var (performing, performed) = MakeServerContexts(
+            typeof(SampleJob), nameof(SampleJob.Execute),
+            enqueueRequestId: "root-abc-999",
+            exception: ex);
+
+        filter.OnPerforming(performing);
+        filter.OnPerformed(performed);
+
+        var excEntry = recorded.Single(e => e.Type == "exception");
+        excEntry.RequestId.Should().Be("root-abc-999");
+    }
+
+    [Fact]
+    public void OnPerformed_SucceededJob_DoesNotRecordExceptionEntry()
+    {
+        var filter = BuildFilter(out var recorded);
+        var (performing, performed) = MakeServerContexts(
+            typeof(SampleJob), nameof(SampleJob.Execute));
+
+        filter.OnPerforming(performing);
+        filter.OnPerformed(performed);
+
+        recorded.Should().HaveCount(1);
+        recorded.Single().Type.Should().Be("job-execution");
+    }
+
+    [Fact]
     public void OnPerformed_UnwrapsJobPerformanceException_WhenFailed()
     {
         var filter = BuildFilter(out var recorded);

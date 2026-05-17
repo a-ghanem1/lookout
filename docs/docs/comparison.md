@@ -14,7 +14,7 @@ Lookout is not trying to replace MiniProfiler.NET or Aspire Dashboard. Each tool
 
 | | Lookout | MiniProfiler.NET | Aspire Dashboard |
 |---|:---:|:---:|:---:|
-| Zero-config install | Yes | Yes | No — requires AppHost |
+| Minial-config install | Yes | Yes | No — requires AppHost |
 | Standalone browser dashboard | Yes | In-page widget | Yes |
 | N+1 detection | Yes | No | No |
 | Exception + log capture | Yes | No | Partial |

@@ -162,7 +162,7 @@ Full docs at **[a-ghanem1.github.io/Lookout](https://a-ghanem1.github.io/Lookout
 
 | | Lookout | MiniProfiler.NET | Aspire Dashboard |
 |---|:---:|:---:|:---:|
-| Zero-config install | ✅ | ✅ | ❌ requires AppHost |
+| Minial-config install | ✅ | ✅ | ❌ requires AppHost |
 | N+1 detection | ✅ | ❌ | ❌ |
 | Exception + log capture | ✅ | ❌ | partial |
 | Cache capture | ✅ | ❌ | ❌ |

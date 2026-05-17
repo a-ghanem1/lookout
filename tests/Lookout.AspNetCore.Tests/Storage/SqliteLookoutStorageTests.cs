@@ -108,6 +108,68 @@ public sealed class SqliteLookoutStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchAsync_PrefixMatch_FindsStemmedWord()
+    {
+        // "TodoList" (no 's') must match an entry whose content contains "TodoLists".
+        // Before the fix, FTS5 exact-word semantics meant "TodoList" returned 0 results.
+        var entry = new LookoutEntry(
+            Id: Guid.NewGuid(),
+            Type: "ef",
+            Timestamp: DateTimeOffset.UtcNow,
+            RequestId: null,
+            DurationMs: null,
+            Tags: new Dictionary<string, string>(),
+            Content: "{\"commandText\":\"SELECT * FROM TodoLists WHERE UserId = @p0\"}");
+
+        await _storage.WriteAsync([entry]);
+
+        var results = await _storage.SearchAsync("TodoList", 10);
+
+        results.Should().ContainSingle(e => e.Id == entry.Id);
+    }
+
+    [Fact]
+    public async Task SearchAsync_PrefixMatch_MultiWord_FindsEntriesMatchingAllPrefixes()
+    {
+        var matching = new LookoutEntry(
+            Id: Guid.NewGuid(), Type: "log",
+            Timestamp: DateTimeOffset.UtcNow, RequestId: null, DurationMs: null,
+            Tags: new Dictionary<string, string>(),
+            Content: "{\"message\":\"OrderService failed to dispatch notification\"}");
+
+        var nonMatching = new LookoutEntry(
+            Id: Guid.NewGuid(), Type: "log",
+            Timestamp: DateTimeOffset.UtcNow, RequestId: null, DurationMs: null,
+            Tags: new Dictionary<string, string>(),
+            Content: "{\"message\":\"OrderService completed successfully\"}");
+
+        await _storage.WriteAsync([matching, nonMatching]);
+
+        // Both terms must prefix-match ("notif" → "notification", "fail" → "failed").
+        var results = await _storage.SearchAsync("notif fail", 10);
+
+        results.Should().ContainSingle(e => e.Id == matching.Id);
+        results.Should().NotContain(e => e.Id == nonMatching.Id);
+    }
+
+    [Fact]
+    public async Task SearchAsync_AdvancedFtsOperators_PassedThroughUnmodified()
+    {
+        // Inputs with quotes are treated as explicit FTS5 queries and not rewritten.
+        var entry = new LookoutEntry(
+            Id: Guid.NewGuid(), Type: "log",
+            Timestamp: DateTimeOffset.UtcNow, RequestId: null, DurationMs: null,
+            Tags: new Dictionary<string, string>(),
+            Content: "{\"message\":\"fetch github repos\"}");
+
+        await _storage.WriteAsync([entry]);
+
+        // Phrase query — should still work.
+        var results = await _storage.SearchAsync("\"fetch github\"", 10);
+        results.Should().ContainSingle(e => e.Id == entry.Id);
+    }
+
+    [Fact]
     public async Task Schema_AppliesIdempotentlyOnReopen()
     {
         await _storage.ReadRecentAsync(1);

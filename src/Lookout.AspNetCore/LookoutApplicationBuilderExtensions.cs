@@ -1,4 +1,5 @@
 using Lookout.Core;
+using Lookout.Core.Capture;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +57,17 @@ public static class LookoutApplicationBuilderExtensions
         var serverFeatures = app.ServerFeatures;
         lifetime.ApplicationStarted.Register(() =>
         {
+            var efActive = EfCommandRegistry.EfInterceptorRegistered;
+            var n1Threshold = options.Ef.N1DetectionMinOccurrences;
+            // LogDebug: framework startup diagnostics don't belong in the developer's dashboard
+            // (LookoutLoggerProvider captures >= Information by default), but remain visible to
+            // anyone who enables debug logging for the "Lookout.AspNetCore" category.
+            logger.LogDebug(
+                "Lookout running at /lookout. EF Core capture: {EfStatus}. " +
+                "N+1 detection: {N1Status}.",
+                efActive ? "active" : "inactive — install Lookout.EntityFrameworkCore",
+                efActive ? $"active (threshold: {n1Threshold} identical queries)" : "inactive");
+
             if (options.AllowNonLoopback) return;
 
             var addresses = serverFeatures.Get<IServerAddressesFeature>()?.Addresses;

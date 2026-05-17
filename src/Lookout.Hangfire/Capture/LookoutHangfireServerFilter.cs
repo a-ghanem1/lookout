@@ -118,6 +118,9 @@ internal sealed class LookoutHangfireServerFilter : IServerFilter
                 Content: JsonSerializer.Serialize(content, LookoutJson.Options));
 
             _recorder.Record(entry);
+
+            if (!succeeded && filterContext.Exception is not null)
+                RecordJobException(filterContext.Exception, enqueueRequestId, backgroundJob.Id);
         }
         catch (Exception ex)
         {
@@ -127,6 +130,50 @@ internal sealed class LookoutHangfireServerFilter : IServerFilter
         {
             scope?.Dispose();
         }
+    }
+
+    private void RecordJobException(Exception exception, string? requestId, string jobId)
+    {
+        try
+        {
+            var ex = exception.InnerException ?? exception;
+            var exType = ex.GetType().FullName ?? ex.GetType().Name;
+
+            InnerExceptionSummary[] inner = ex.InnerException is not null
+                ? [new InnerExceptionSummary(
+                    ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name,
+                    ex.InnerException.Message)]
+                : [];
+
+            var content = new ExceptionEntryContent(
+                ExceptionType: exType,
+                Message: ex.Message,
+                Stack: StackTraceCapture.CaptureFromException(ex, 20),
+                InnerExceptions: inner,
+                Source: ex.Source,
+                HResult: ex.HResult,
+                Handled: true);
+
+            var tags = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["exception.type"] = exType,
+                ["exception.handled"] = "true",
+                ["job.id"] = jobId,
+                ["job.execute"] = "true",
+            };
+            if (!string.IsNullOrEmpty(ex.Source))
+                tags["exception.source"] = ex.Source!;
+
+            _recorder.Record(new LookoutEntry(
+                Id: Guid.NewGuid(),
+                Type: "exception",
+                Timestamp: DateTimeOffset.UtcNow,
+                RequestId: requestId,
+                DurationMs: 0,
+                Tags: tags,
+                Content: JsonSerializer.Serialize(content, LookoutJson.Options)));
+        }
+        catch { /* never let exception capture crash the filter */ }
     }
 
     private bool IsIgnoredType(Type type)

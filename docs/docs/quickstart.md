@@ -48,9 +48,11 @@ dotnet add package Lookout.Hangfire
 Then register it alongside `AddLookout()`:
 
 ```csharp
+using Lookout.Hangfire;
+
 builder.Services.AddHangfire(cfg => cfg.UseInMemoryStorage());
 builder.Services.AddHangfireServer();
-builder.Services.AddLookoutHangfire(); // from Lookout.Hangfire namespace
+builder.Services.AddLookoutHangfire();
 ```
 
 :::tip Hangfire recurring jobs
@@ -64,6 +66,8 @@ If you use `RecurringJob.AddOrUpdate()` (Hangfire's static API), see
 ### Program.cs — three lines
 
 ```csharp
+using Lookout.AspNetCore;
+
 // 1. Register services — call AFTER AddMemoryCache / AddDistributedMemoryCache
 builder.Services.AddLookout();
 
@@ -91,18 +95,23 @@ EF Core query capture is not automatic. After installing `Lookout.EntityFramewor
 registered (the Web host in a simple project; the Infrastructure project in Clean Architecture):
 
 ```csharp
+using Lookout.AspNetCore;
+using Lookout.EntityFrameworkCore;
+
 builder.Services.AddLookout();
-builder.Services.AddLookoutEntityFrameworkCore(); // from Lookout.EntityFrameworkCore namespace
+builder.Services.AddLookoutEntityFrameworkCore();
 ```
 
 **Step 2** — add `.UseLookout(sp)` inside every `AddDbContext` call you want to instrument.
 Note that `.UseLookout(sp)` is called inside `AddDbContext`, not in `Program.cs`:
 
 ```csharp
+using Lookout.EntityFrameworkCore;
+
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
     options.UseSqlServer(connectionString)
-           .UseLookout(sp);   // <-- adds the Lookout DbCommandInterceptor
+           .UseLookout(sp);   // adds the Lookout DbCommandInterceptor
 });
 ```
 
@@ -120,6 +129,10 @@ independent.
 All the pieces above in one copy-pasteable block, in the correct order:
 
 ```csharp
+using Lookout.AspNetCore;
+using Lookout.EntityFrameworkCore; // only if using EF Core
+using Lookout.Hangfire;            // only if using Hangfire
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── 1. Caches first ────────────────────────────────────────────────────────────
@@ -156,10 +169,11 @@ app.MapLookout();     // mounts the dashboard at /lookout
 app.Run();
 ```
 
-:::tip Three common first-time issues
+:::tip Four common first-time issues
 - **Cache badge always 0?** `AddLookout()` must come *after* `AddMemoryCache()` — it wraps whatever is registered at call time.
 - **EF queries not showing?** Install `Lookout.EntityFrameworkCore` and add `.UseLookout(sp)` inside your `AddDbContext` call — see the EF section above.
 - **Lookout throwing at startup?** The current `ASPNETCORE_ENVIRONMENT` is not `Development`. See [Troubleshooting](./troubleshooting#lookout-throws-at-startup).
+- **Using Serilog?** Add `.ReadFrom.Services(services)` to your Serilog config so it forwards events to Lookout's logger provider. See [Troubleshooting → Serilog](./troubleshooting#logs-not-appearing-when-using-serilog).
 :::
 
 ## 3. Run

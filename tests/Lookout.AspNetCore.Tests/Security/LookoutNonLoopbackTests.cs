@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Lookout.Core;
+using Lookout.Core.Capture;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -79,6 +79,79 @@ public sealed class LookoutNonLoopbackTests
         await app.StopAsync();
 
         logs.Should().NotContain(l => l.Message.Contains("non-loopback"));
+    }
+
+    // ── startup information log ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task UseLookout_LogsStartupInfo_WithEfInactive_WhenEfNotRegistered()
+    {
+        var logs = new List<(LogLevel Level, string Message)>();
+
+        var builder = WebApplication.CreateBuilder(
+            new WebApplicationOptions { EnvironmentName = "Development" });
+        builder.WebHost.UseTestServer();
+        builder.Services.AddLookout();
+        builder.Logging.ClearProviders();
+        builder.Logging.SetMinimumLevel(LogLevel.Debug); // startup log is at Debug level
+        builder.Logging.AddProvider(new CaptureLoggerProvider(logs));
+
+        await using var app = builder.Build();
+
+        // Force EF inactive for this test regardless of parallel test state.
+        var prev = EfCommandRegistry.EfInterceptorRegistered;
+        EfCommandRegistry.EfInterceptorRegistered = false;
+        try
+        {
+            app.UseLookout();
+            app.MapLookout();
+            await app.StartAsync();
+            await app.StopAsync();
+        }
+        finally
+        {
+            EfCommandRegistry.EfInterceptorRegistered = prev;
+        }
+
+        logs.Should().Contain(l =>
+            l.Level == LogLevel.Debug &&
+            l.Message.Contains("inactive") &&
+            l.Message.Contains("Lookout.EntityFrameworkCore"));
+    }
+
+    [Fact]
+    public async Task UseLookout_LogsStartupInfo_WithN1Threshold_WhenEfRegistered()
+    {
+        var logs = new List<(LogLevel Level, string Message)>();
+
+        var builder = WebApplication.CreateBuilder(
+            new WebApplicationOptions { EnvironmentName = "Development" });
+        builder.WebHost.UseTestServer();
+        builder.Services.AddLookout(o => o.Ef.N1DetectionMinOccurrences = 5);
+        builder.Logging.ClearProviders();
+        builder.Logging.SetMinimumLevel(LogLevel.Debug); // startup log is at Debug level
+        builder.Logging.AddProvider(new CaptureLoggerProvider(logs));
+
+        await using var app = builder.Build();
+
+        // Simulate AddLookoutEntityFrameworkCore() having been called.
+        EfCommandRegistry.EfInterceptorRegistered = true;
+        try
+        {
+            app.UseLookout();
+            app.MapLookout();
+            await app.StartAsync();
+            await app.StopAsync();
+        }
+        finally
+        {
+            EfCommandRegistry.EfInterceptorRegistered = false;
+        }
+
+        logs.Should().Contain(l =>
+            l.Level == LogLevel.Debug &&
+            l.Message.Contains("active") &&
+            l.Message.Contains("5"));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
