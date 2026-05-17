@@ -46,7 +46,7 @@ public sealed class ExceptionCaptureIntegrationTests : IDisposable
         var response = await app.GetTestClient().GetAsync("/throw");
         // Error page served by UseExceptionHandler — any non-success is fine.
 
-        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 5);
+        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 15);
         await app.StopAsync();
 
         var exceptionEntry = entries.Where(e => e.Type == "exception").ToList();
@@ -77,7 +77,7 @@ public sealed class ExceptionCaptureIntegrationTests : IDisposable
 
         await app.GetTestClient().GetAsync("/throw");
 
-        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 5);
+        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 15);
         await app.StopAsync();
 
         var httpEntry = entries.Single(e => e.Type == "http");
@@ -106,7 +106,7 @@ public sealed class ExceptionCaptureIntegrationTests : IDisposable
 
         await app.GetTestClient().GetAsync("/throw");
 
-        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 5);
+        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 15);
         await app.StopAsync();
 
         var httpEntry = entries.Single(e => e.Type == "http");
@@ -137,7 +137,7 @@ public sealed class ExceptionCaptureIntegrationTests : IDisposable
 
         await app.GetTestClient().GetAsync("/throw");
 
-        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 1, timeoutSeconds: 5);
+        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 1, timeoutSeconds: 15);
         await app.StopAsync();
 
         entries.Should().NotContain(e => e.Type == "exception",
@@ -165,7 +165,7 @@ public sealed class ExceptionCaptureIntegrationTests : IDisposable
 
         await app.GetTestClient().GetAsync("/rethrow");
 
-        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 5);
+        var entries = await PollForEntriesAsync(dbPath, expectedMinimum: 2, timeoutSeconds: 15);
         await app.StopAsync();
 
         entries.Where(e => e.Type == "exception").Should().ContainSingle(

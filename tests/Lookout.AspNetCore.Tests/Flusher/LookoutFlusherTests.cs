@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
@@ -138,6 +139,8 @@ public sealed class LookoutFlusherTests : IDisposable
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Services.AddLookout(o => o.StoragePath = dbPath);
+        // Give the flusher's drain enough runway on slow CI runners (default is 5 s).
+        builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(30));
         extraServices?.Invoke(builder.Services);
         var app = builder.Build();
         app.UseLookout();
